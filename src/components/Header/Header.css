@@ -1,0 +1,22 @@
+.header-navbar {
+  background-color: var(--cor-principal);
+}
+
+.header-logo {
+  width: 110px;
+  height: auto;
+}
+
+.header-navbar .navbar-nav {
+  margin-left: auto;
+}
+
+.header-navbar .nav-link {
+  color: black !important;
+  font-family: var(--fonte-titulo);
+  font-size: 18px;
+}
+
+.header-navbar .nav-link:hover {
+  color: white !important;
+}
