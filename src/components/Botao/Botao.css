@@ -1,0 +1,24 @@
+.botao {
+  display: inline-block;
+  background-color: wheat;
+  color: black;
+  font-family: var(--fonte-titulo);
+  font-size: 18px;
+  text-decoration: none;
+  border: 1px solid #8a8a8a;
+  border-radius: 5px;
+  padding: 10px 20px;
+  margin-top: 20px;
+}
+
+.botao:hover {
+  background-color: rgb(233, 193, 120);
+  color: black;
+}
+
+@media (max-width: 768px) {
+  .botao {
+    display: block;
+    width: 100%;
+  }
+}

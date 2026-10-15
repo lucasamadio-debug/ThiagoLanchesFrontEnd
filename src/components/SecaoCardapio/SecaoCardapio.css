@@ -1,0 +1,16 @@
+.secao-header {
+  border-bottom: 2px solid #f5b753;
+  padding-bottom: 10px;
+}
+
+.secao-icone {
+  font-size: 28px;
+}
+
+.secao-titulo {
+  font-family: var(--fonte-titulo);
+  font-size: 26px;
+  font-weight: 700;
+  color: #222;
+  letter-spacing: 0.5px;
+}
