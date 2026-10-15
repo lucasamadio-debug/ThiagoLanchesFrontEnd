@@ -17,12 +17,23 @@ const Login = () => {
           <form onSubmit={enviar}>
             <div className="mb-3">
               <label htmlFor="email">E-mail:</label>
-              <input type="text" id="email" className="form-control" />
+              <input 
+              type="text" id="email" className="form-control"   placeholder="Digite seu e-mail" />
+            </div>
+            <div className="mb-3">
+              <label htmlFor="cpf">CPF:</label>
+              <input
+                type="text"
+                id="cpf"
+                className="form-control"
+                placeholder="000.000.000-00"
+                maxLength={14}
+              />
             </div>
 
             <div className="mb-3">
               <label htmlFor="senha">Senha:</label>
-              <input type="password" id="senha" className="form-control" />
+              <input type="password" id="senha" className="form-control"   placeholder="Digite sua senha" />
             </div>
             <div className="mt-3">
               <button type="submit" className="btn btn-success w-100">
