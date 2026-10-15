@@ -1,7 +1,7 @@
 import { useState } from "react";
 import FiltroCategorias from "../../components/FiltroCategorias/FiltroCategorias";
 import SecaoCardapio from "../../components/SecaoCardapio/SecaoCardapio";
-import { lanches } from "../../data/lanches";
+import { lanches } from "../../data/produtos";
 import { filtros } from "../../data/filtros";
 import { filtrarPorCategoria, agruparPorCategoria } from "../../utils/cardapio";
 

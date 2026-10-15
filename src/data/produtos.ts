@@ -1,8 +1,8 @@
-import type { Lanche } from "../types/Lanche";
+import type { Produto } from "../types/Produto";
 
 // Dados de exemplo, iguais aos do banco antigo.
 // Quando a API ficar pronta, isso vai ser trocado por uma chamada ao back-end.
-export const lanches: Lanche[] = [
+export const lanches: Produto[] = [
   { id: 1, nome: "x-salada", preco: 22, popular: false, ingredientes: "Pão, queijo, presunto, tomate, hamburguer e alface", categoria: "PRENSADOS" },
   { id: 2, nome: "x-bacon", preco: 30, popular: false, ingredientes: "Pão, queijo, presunto, tomate, hamburguer, bacon e alface", categoria: "PRENSADOS" },
   { id: 9, nome: "dog Carne", preco: 22, popular: false, ingredientes: "Pão, salsicha, carne e batata palha", categoria: "HOT DOGS" },

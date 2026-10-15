@@ -1,7 +1,7 @@
-import type { Lanche } from "./Lanche";
+import type { Produto } from "./Produto";
 
 export interface Secao {
   titulo: string;
   icone: string;
-  lanches: Lanche[];
+  lanches: Produto[];
 }

@@ -1,4 +1,4 @@
-import type { Lanche } from "../types/Lanche";
+import type { Produto } from "../types/Produto";
 import type { Secao } from "../types/Secao";
 
 export const pegarIcone = (categoria: string): string => {
@@ -19,7 +19,7 @@ export const pegarIcone = (categoria: string): string => {
   return "🍔";
 };
 
-export const agruparPorCategoria = (lanches: Lanche[]): Secao[] => {
+export const agruparPorCategoria = (lanches: Produto[]): Secao[] => {
   const secoes: Secao[] = [];
 
   lanches.forEach((lanche) => {
@@ -40,7 +40,7 @@ export const agruparPorCategoria = (lanches: Lanche[]): Secao[] => {
   return secoes;
 };
 
-export const filtrarPorCategoria = (lanches: Lanche[], categoria: string): Lanche[] => {
+export const filtrarPorCategoria = (lanches: Produto[], categoria: string): Produto[] => {
   if (categoria === "TODOS") {
     return lanches;
   }

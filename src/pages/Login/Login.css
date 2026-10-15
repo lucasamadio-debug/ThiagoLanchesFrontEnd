@@ -1,0 +1,17 @@
+.login {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 50px 15px;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 400px;
+  border-radius: 10px;
+}
+
+.login-logo {
+  width: 100%;
+  max-width: 150px;
+}

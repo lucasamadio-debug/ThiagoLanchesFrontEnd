@@ -1,9 +1,9 @@
-import type { Lanche } from "../../types/Lanche";
+import type { Produto } from "../../types/Produto";
 import { formatarPreco, gerarLinkWhatsapp } from "../../utils/formatar";
 import "./CardLanche.css";
 
 interface CardLancheProps {
-  lanche: Lanche;
+  lanche: Produto;
 }
 
 const CardLanche = (props: CardLancheProps) => {

@@ -1,0 +1,68 @@
+.sobre-titulo h2 {
+  background-color: var(--cor-fundo);
+  padding: 30px;
+  text-align: center;
+  font-family: var(--fonte-titulo);
+  color: white;
+  font-size: 40px;
+}
+
+.sobre-historia {
+  display: flex;
+  align-items: center;
+  background-color: white;
+  margin: 50px auto;
+  padding: 40px;
+  max-width: 900px;
+  border-radius: 15px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.sobre-texto {
+  flex: 2;
+  padding-right: 30px;
+  text-align: left;
+}
+
+.sobre-texto h2 {
+  color: var(--cor-destaque);
+  font-size: 28px;
+  margin-bottom: 15px;
+}
+
+.sobre-texto p {
+  color: #555;
+  line-height: 1.6;
+  margin-bottom: 10px;
+}
+
+.sobre-chef {
+  flex: 1;
+  background-color: #fff9e6;
+  padding: 30px;
+  border-radius: 12px;
+  text-align: center;
+}
+
+.sobre-chef img {
+  width: 100%;
+  border-radius: 10px;
+}
+
+.sobre-chef p {
+  color: #888;
+  font-size: 14px;
+}
+
+@media (max-width: 768px) {
+  .sobre-historia {
+    flex-direction: column;
+    margin: 20px 15px;
+    padding: 20px;
+  }
+
+  .sobre-texto {
+    padding-right: 0;
+    margin-bottom: 20px;
+  }
+}
