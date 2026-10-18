@@ -1,9 +1,50 @@
+import { useState } from "react";
 import type { FormEvent } from "react";
+import { useNavigate } from "react-router-dom";
+import CampoFormulario from "../../components/CampoFormulario/CampoFormulario";
+import { loginSchema } from "../../schemas/usuario";
+import { fazerLogin } from "../../services/authService";
+import { pegarErros } from "../../utils/erros";
 import "./Login.css";
 
 const Login = () => {
-  const enviar = (evento: FormEvent) => {
+  const navigate = useNavigate();
+
+  const [email, setEmail] = useState("");
+  const [cpf, setCpf] = useState("");
+  const [senha, setSenha] = useState("");
+  const [erros, setErros] = useState<Record<string, string>>({});
+  const [mensagemErro, setMensagemErro] = useState("");
+  const [carregando, setCarregando] = useState(false);
+
+  const enviar = async (evento: FormEvent) => {
     evento.preventDefault();
+    setMensagemErro("");
+
+    const resultado = loginSchema.safeParse({ email: email, cpf: cpf, senha: senha });
+
+    if (resultado.success === false) {
+      setErros(pegarErros(resultado.error));
+      return;
+    }
+
+    setErros({});
+    setCarregando(true);
+
+    try {
+      const cpfSomenteNumeros = cpf.replace(/\D/g, "");
+      const resposta = await fazerLogin(email, cpfSomenteNumeros, senha);
+      localStorage.setItem("token", resposta.token);
+      navigate("/"); // quando a área logada existir, trocamos esta rota por ela
+    } catch (erro) {
+      if (erro instanceof Error) {
+        setMensagemErro(erro.message);
+      } else {
+        setMensagemErro("Erro inesperado. Tente novamente.");
+      }
+    }
+
+    setCarregando(false);
   };
 
   return (
@@ -15,29 +56,42 @@ const Login = () => {
 
         <div className="card-body">
           <form onSubmit={enviar}>
-            <div className="mb-3">
-              <label htmlFor="email">E-mail:</label>
-              <input 
-              type="text" id="email" className="form-control"   placeholder="Digite seu e-mail" />
-            </div>
-            <div className="mb-3">
-              <label htmlFor="cpf">CPF:</label>
-              <input
-                type="text"
-                id="cpf"
-                className="form-control"
-                placeholder="000.000.000-00"
-                maxLength={14}
-              />
-            </div>
+            <CampoFormulario
+              id="email"
+              rotulo="E-mail:"
+              tipo="text"
+              placeholder="Digite seu e-mail"
+              valor={email}
+              erro={erros.email}
+              aoMudar={setEmail}
+            />
 
-            <div className="mb-3">
-              <label htmlFor="senha">Senha:</label>
-              <input type="password" id="senha" className="form-control"   placeholder="Digite sua senha" />
-            </div>
+            <CampoFormulario
+              id="cpf"
+              rotulo="CPF:"
+              tipo="text"
+              placeholder="000.000.000-00"
+              maxLength={14}
+              valor={cpf}
+              erro={erros.cpf}
+              aoMudar={setCpf}
+            />
+
+            <CampoFormulario
+              id="senha"
+              rotulo="Senha:"
+              tipo="password"
+              placeholder="Digite sua senha"
+              valor={senha}
+              erro={erros.senha}
+              aoMudar={setSenha}
+            />
+
+            {mensagemErro ? <div className="alert alert-danger">{mensagemErro}</div> : null}
+
             <div className="mt-3">
-              <button type="submit" className="btn btn-success w-100">
-                Entrar
+              <button type="submit" className="btn btn-success w-100" disabled={carregando}>
+                {carregando ? "Entrando..." : "Entrar"}
               </button>
             </div>
           </form>
