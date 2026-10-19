@@ -35,7 +35,7 @@ const Login = () => {
       const cpfSomenteNumeros = cpf.replace(/\D/g, "");
       const resposta = await fazerLogin(email, cpfSomenteNumeros, senha);
       localStorage.setItem("token", resposta.token);
-      navigate("/"); // quando a área logada existir, trocamos esta rota por ela
+      navigate("/admin"); 
     } catch (erro) {
       if (erro instanceof Error) {
         setMensagemErro(erro.message);

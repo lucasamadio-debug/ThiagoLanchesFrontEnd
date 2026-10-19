@@ -11,8 +11,7 @@ export const fazerLogin = async (email: string, cpf: string, senha: string): Pro
       body: JSON.stringify({ email: email, cpf: cpf, senha: senha }),
     });
   } catch (erro) {
-    console.error(erro);
-    throw new Error("Não foi possível conectar ao servidor. Tente novamente.");
+    throw new Error("Não foi possível conectar ao servidor. Tente novamente.", { cause: erro });
   }
 
   if (resposta.status === 400) {
@@ -21,6 +20,10 @@ export const fazerLogin = async (email: string, cpf: string, senha: string): Pro
 
   if (resposta.status === 401) {
     throw new Error("E-mail, CPF ou senha incorretos.");
+  }
+
+  if (resposta.status === 403) {
+    throw new Error("Você não tem permissão para acessar a área administrativa.");
   }
 
   if (!resposta.ok) {
