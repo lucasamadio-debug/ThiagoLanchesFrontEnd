@@ -1,8 +1,16 @@
    import { useContext } from "react";
    import { NavLink, Outlet, useNavigate } from "react-router-dom";
    import { AuthContext } from "../../contexts/AuthContext";
-   import { linksAdmin } from "../../data/linksAdmin";
    import "./AdminLayout.css";
+
+   const linksAdmin = [
+  { texto: "Dashboard", para: "/admin" },
+  { texto: "Lanches", para: "/admin/lanches" },
+  { texto: "Categorias", para: "/admin/categorias" },
+  { texto: "Estoque", para: "/admin/estoque" },
+  { texto: "Usuários", para: "/admin/usuarios" },
+   { texto: "Ingredientes", para: "/admin/Ingredientes" },
+];
 
    const AdminLayout = () => {
      const auth = useContext(AuthContext);
