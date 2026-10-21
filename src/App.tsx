@@ -24,6 +24,9 @@ import Cadastro from "./pages/Cadastro/Cadastro";
 import Estoque from "./pages/Estoque/Estoque";
 import FormularioEstoque from "./pages/Estoque/FormularioEstoque";
 
+import Ingredientes from "./pages/Ingredientes/Ingredientes";
+import FormularioIngrediente from "./pages/Ingredientes/FormularioIngrediente";
+
 const App = () => {
   return (
     <Routes>
@@ -87,6 +90,21 @@ const App = () => {
           <Route
             path="/admin/estoque/editar/:id"
             element={<FormularioEstoque />}
+          />
+
+          <Route
+            path="/admin/ingredientes"
+            element={<Ingredientes />}
+          />
+
+          <Route
+            path="/admin/ingredientes/novo"
+            element={<FormularioIngrediente />}
+          />
+
+          <Route
+            path="/admin/ingredientes/editar/:id"
+            element={<FormularioIngrediente />}
           />
         </Route>
       </Route>
