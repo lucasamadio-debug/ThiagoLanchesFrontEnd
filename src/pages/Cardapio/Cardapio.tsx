@@ -3,6 +3,7 @@ import FiltroCategorias from "../../components/FiltroCategorias/FiltroCategorias
 import SecaoCardapio from "../../components/SecaoCardapio/SecaoCardapio";
 import type { Produto } from "../../types/Produto";
 import { filtros } from "../../data/filtros";
+import { API_URL } from "../../utils/constantes";
 import { filtrarPorCategoria, agruparPorCategoria } from "../../utils/cardapio";
 
 const Cardapio = () => {
@@ -12,7 +13,7 @@ const Cardapio = () => {
   const [carregando, setCarregando] = useState<boolean>(true);
 
   useEffect(() => {
-    fetch("http://localhost:3000/menu")
+    fetch(`${API_URL}/menu`)
         .then((response) => {
           if(!response.ok) {
             throw new Error("Erro ao carregar cardápio")
