@@ -1,7 +1,9 @@
-import { useState } from "react";
+
+import { useContext, useState } from "react";
 import type { FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import CampoFormulario from "../../components/CampoFormulario/CampoFormulario";
+import { AuthContext } from "../../contexts/AuthContext";
 import { loginSchema } from "../../schemas/usuario";
 import { fazerLogin } from "../../services/authService";
 import { pegarErros } from "../../utils/erros";
@@ -9,6 +11,7 @@ import "./Login.css";
 
 const Login = () => {
   const navigate = useNavigate();
+  const auth = useContext(AuthContext);
 
   const [email, setEmail] = useState("");
   const [cpf, setCpf] = useState("");
@@ -21,7 +24,11 @@ const Login = () => {
     evento.preventDefault();
     setMensagemErro("");
 
-    const resultado = loginSchema.safeParse({ email: email, cpf: cpf, senha: senha });
+    const resultado = loginSchema.safeParse({
+      email: email,
+      cpf: cpf,
+      senha: senha,
+    });
 
     if (resultado.success === false) {
       setErros(pegarErros(resultado.error));
@@ -33,25 +40,32 @@ const Login = () => {
 
     try {
       const cpfSomenteNumeros = cpf.replace(/\D/g, "");
-      const resposta = await fazerLogin(email, cpfSomenteNumeros, senha);
-      localStorage.setItem("token", resposta.token);
-      navigate("/admin"); 
+
+      const resposta = await fazerLogin(
+        email,
+        cpfSomenteNumeros,
+        senha
+      );
+
+      auth.entrar(resposta);
+      navigate("/admin");
+
     } catch (erro) {
       if (erro instanceof Error) {
         setMensagemErro(erro.message);
       } else {
         setMensagemErro("Erro inesperado. Tente novamente.");
       }
+    } finally {
+      setCarregando(false);
     }
-
-    setCarregando(false);
   };
 
   return (
     <div className="login">
       <div className="card shadow login-card">
-        <div className="card-header text-center">
-          <img src="/imagens/logo5.png" alt="Thiago Lanches" className="login-logo" />
+        <div className="card-header text-center bg-white py-3">
+          <h3 className="m-0">Login</h3>
         </div>
 
         <div className="card-body">
@@ -59,7 +73,7 @@ const Login = () => {
             <CampoFormulario
               id="email"
               rotulo="E-mail:"
-              tipo="text"
+              tipo="email"
               placeholder="Digite seu e-mail"
               valor={email}
               erro={erros.email}
@@ -87,10 +101,18 @@ const Login = () => {
               aoMudar={setSenha}
             />
 
-            {mensagemErro ? <div className="alert alert-danger">{mensagemErro}</div> : null}
+            {mensagemErro && (
+              <div className="alert alert-danger">
+                {mensagemErro}
+              </div>
+            )}
 
             <div className="mt-3">
-              <button type="submit" className="btn btn-success w-100" disabled={carregando}>
+              <button
+                type="submit"
+                className="btn btn-success w-100"
+                disabled={carregando}
+              >
                 {carregando ? "Entrando..." : "Entrar"}
               </button>
             </div>

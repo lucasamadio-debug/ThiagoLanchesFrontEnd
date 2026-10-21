@@ -30,5 +30,47 @@ export const fazerLogin = async (email: string, cpf: string, senha: string): Pro
     throw new Error("Erro no servidor. Tente novamente mais tarde.");
   }
 
+
+
   return await resposta.json();
+
+};
+
+
+
+export const cadastrarUsuario = async (
+  nome: string,
+  email: string,
+  cpf: string,
+  senha: string
+): Promise<void> => {
+  let resposta: Response;
+
+  try {
+    resposta = await fetch(API_URL + "/auth/register", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        nome,
+        email,
+        cpf,
+        senha,
+      }),
+    });
+  } catch {
+    throw new Error(
+      "Não foi possível conectar ao servidor."
+    );
+  }
+
+  if (!resposta.ok) {
+    const dados: { message?: string } | null =
+      await resposta.json().catch(() => null);
+
+    throw new Error(
+      dados?.message || "Erro ao cadastrar usuário."
+    );
+  }
 };

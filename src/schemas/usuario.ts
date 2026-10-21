@@ -26,3 +26,18 @@ export const loginSchema = z.object({
   cpf: cpfSchema,
   senha: z.string().min(1, "Informe a senha"),
 });
+
+
+export const cadastroSchema = z.object({
+  nome: z.string().trim().min(1, "Informe o nome"),
+  email: emailSchema,
+  cpf: cpfSchema,
+  senha: senhaSchema,
+  confirmarSenha: z.string().min(1, "Confirme a senha"),
+}).refine(
+  (dados) => dados.senha === dados.confirmarSenha,
+  {
+    message: "As senhas não coincidem",
+    path: ["confirmarSenha"],
+  }
+);
