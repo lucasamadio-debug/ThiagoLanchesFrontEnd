@@ -8,3 +8,11 @@ export const gerarLinkWhatsapp = (nomeLanche: string): string => {
 export const formatarPreco = (preco: number): string => {
   return "R$ " + preco.toFixed(2).replace(".", ",");
 };
+
+export const classeBadgeEstoque = (quantidade: number): string => {
+  if (quantidade < 5) {
+    return "badge bg-danger";
+  }
+
+  return "badge bg-success";
+};

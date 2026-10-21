@@ -21,6 +21,9 @@ import FormularioCategoria from "./pages/Categorias/FormularioCategoria";
 
 import Cadastro from "./pages/Cadastro/Cadastro";
 
+import Estoque from "./pages/Estoque/Estoque";
+import FormularioEstoque from "./pages/Estoque/FormularioEstoque";
+
 const App = () => {
   return (
     <Routes>
@@ -29,7 +32,6 @@ const App = () => {
         <Route path="/cardapio" element={<Cardapio />} />
         <Route path="/sobre" element={<Sobre />} />
         <Route path="/login" element={<Login />} />
-        <Route path="/cadastro" element={<Cadastro />} />
         <Route path="*" element={<Erro />} />
       </Route>
 
@@ -70,6 +72,21 @@ const App = () => {
           <Route
             path="/admin/usuarios"
             element={<Cadastro />}
+          />
+
+          <Route
+            path="/admin/estoque"
+            element={<Estoque />}
+          />
+
+          <Route
+            path="/admin/estoque/novo"
+            element={<FormularioEstoque />}
+          />
+
+          <Route
+            path="/admin/estoque/editar/:id"
+            element={<FormularioEstoque />}
           />
         </Route>
       </Route>
