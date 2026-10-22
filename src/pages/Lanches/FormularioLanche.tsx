@@ -5,6 +5,11 @@ import { Link, useParams } from "react-router-dom";
 import CampoFormulario from "../../components/CampoFormulario/CampoFormulario";
 import { buscarProdutos } from "../../services/produtosService";
 
+interface Ingrediente {
+  id: number;
+  nome: string;
+}
+
 const FormularioLanche = () => {
   const { id } = useParams();
   const editando = id !== undefined;
@@ -13,8 +18,17 @@ const FormularioLanche = () => {
   const [categoria, setCategoria] = useState("");
   const [preco, setPreco] = useState("");
   const [categorias, setCategorias] = useState<string[]>([]);
+
+  const [quantidades, setQuantidades] = useState<
+    Record<number, number>
+  >({});
+
   const [carregando, setCarregando] = useState(true);
   const [mensagemErro, setMensagemErro] = useState("");
+
+  // TODO: Buscar todos os ingredientes na API do backend.
+  // Substituir esta lista vazia pelos ingredientes reais.
+  const ingredientes: Ingrediente[] = [];
 
   useEffect(() => {
     const carregar = async () => {
@@ -36,19 +50,44 @@ const FormularioLanche = () => {
             setNome(produto.nome);
             setCategoria(produto.categoria);
             setPreco(String(produto.preco));
+
+            // TODO: Buscar os ingredientes deste lanche na API.
+            // Preencher as quantidades já cadastradas na receita.
           } else {
             setMensagemErro("Lanche não encontrado.");
           }
         }
+
+        // TODO: Carregar os ingredientes cadastrados no banco.
       } catch {
         setMensagemErro("Não foi possível carregar os dados.");
+      } finally {
+        setCarregando(false);
       }
-
-      setCarregando(false);
     };
 
     carregar();
   }, [id, editando]);
+
+  const alterarQuantidade = (
+    idIngrediente: number,
+    valor: number
+  ) => {
+    setQuantidades((quantidadesAtuais) => {
+      const quantidadeAtual =
+        quantidadesAtuais[idIngrediente] || 0;
+
+      const novaQuantidade = Math.max(
+        0,
+        quantidadeAtual + valor
+      );
+
+      return {
+        ...quantidadesAtuais,
+        [idIngrediente]: novaQuantidade,
+      };
+    });
+  };
 
   const salvarLanche = (evento: FormEvent) => {
     evento.preventDefault();
@@ -64,9 +103,20 @@ const FormularioLanche = () => {
       return;
     }
 
-    alert(
-      "Formulário preenchido! A função de salvar será integrada ao backend posteriormente."
-    );
+    // TODO: Ao integrar a API, montar a lista
+    // dos ingredientes com quantidade maior que zero.
+    //
+    // Cada item deverá ter:
+    // - ID do ingrediente
+    // - Quantidade utilizada no lanche
+
+    if (editando) {
+      // TODO: Enviar alterações do lanche e da receita.
+    } else {
+      // TODO: Cadastrar lanche e associar ingredientes.
+    }
+
+    // TODO: Redirecionar após confirmação da API.
   };
 
   if (carregando) {
@@ -80,7 +130,10 @@ const FormularioLanche = () => {
           {mensagemErro}
         </div>
 
-        <Link to="/admin/lanches" className="btn btn-secondary">
+        <Link
+          to="/admin/lanches"
+          className="btn btn-secondary"
+        >
           Voltar
         </Link>
       </div>
@@ -94,7 +147,9 @@ const FormularioLanche = () => {
     >
       <div className="card-header bg-white py-3">
         <h3 className="m-0">
-          {editando ? "Editar Lanche" : "Cadastrar Novo Lanche"}
+          {editando
+            ? "Editar Lanche"
+            : "Cadastrar Novo Lanche"}
         </h3>
       </div>
 
@@ -110,7 +165,10 @@ const FormularioLanche = () => {
           />
 
           <div className="mb-3">
-            <label htmlFor="categoria" className="form-label">
+            <label
+              htmlFor="categoria"
+              className="form-label"
+            >
               Categoria:
             </label>
 
@@ -118,10 +176,14 @@ const FormularioLanche = () => {
               id="categoria"
               className="form-control"
               value={categoria}
-              onChange={(evento) => setCategoria(evento.target.value)}
+              onChange={(evento) =>
+                setCategoria(evento.target.value)
+              }
               required
             >
-              <option value="">Selecione uma categoria</option>
+              <option value="">
+                Selecione uma categoria
+              </option>
 
               {categorias.map((item) => (
                 <option key={item} value={item}>
@@ -140,11 +202,91 @@ const FormularioLanche = () => {
             aoMudar={setPreco}
           />
 
-          <button type="submit" className="btn btn-success me-2">
+          <hr className="my-4" />
+
+          <h4 className="mb-3">
+            Ingredientes do Lanche
+          </h4>
+
+          <div className="table-responsive mb-4">
+            <table className="table table-hover align-middle">
+              <thead className="table-light">
+                <tr>
+                  <th className="ps-3">
+                    Ingrediente
+                  </th>
+
+                  <th className="text-end pe-3">
+                    Quantidade
+                  </th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {ingredientes.map((ingrediente) => (
+                  <tr key={ingrediente.id}>
+                    <td className="ps-3">
+                      {ingrediente.nome}
+                    </td>
+
+                    <td className="text-end pe-3">
+                      <div className="d-flex justify-content-end align-items-center gap-2">
+                        <button
+                          type="button"
+                          className="btn btn-outline-danger btn-sm"
+                          disabled={
+                            (quantidades[ingrediente.id] || 0) === 0
+                          }
+                          onClick={() =>
+                            alterarQuantidade(
+                              ingrediente.id,
+                              -1
+                            )
+                          }
+                        >
+                          −
+                        </button>
+
+                        <span
+                          className="text-center fw-bold"
+                          style={{ minWidth: "30px" }}
+                        >
+                          {quantidades[ingrediente.id] || 0}
+                        </span>
+
+                        <button
+                          type="button"
+                          className="btn btn-outline-success btn-sm"
+                          onClick={() =>
+                            alterarQuantidade(
+                              ingrediente.id,
+                              1
+                            )
+                          }
+                        >
+                          +
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+
+                {/* TODO: Listar ingredientes reais da API */}
+              </tbody>
+            </table>
+          </div>
+
+          <button
+            type="submit"
+            className="btn btn-success me-2"
+          >
             Salvar
           </button>
 
-          <Link to="/admin/lanches" className="btn btn-secondary">
+          <Link
+            to="/admin/lanches"
+            className="btn btn-secondary"
+          >
             Cancelar
           </Link>
         </form>

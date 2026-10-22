@@ -27,6 +27,7 @@ import FormularioEstoque from "./pages/Estoque/FormularioEstoque";
 import Ingredientes from "./pages/Ingredientes/Ingredientes";
 import FormularioIngrediente from "./pages/Ingredientes/FormularioIngrediente";
 
+import Usuarios from "./pages/Usuarios/Usuarios";
 import EditarUsuario from "./pages/Usuarios/EditarUsuario";
 
 const App = () => {
@@ -76,9 +77,14 @@ const App = () => {
 
           <Route
             path="/admin/usuarios"
+            element={<Usuarios />}
+          />
+
+          <Route
+            path="/admin/usuarios/novo"
             element={<Cadastro />}
           />
-          
+
           <Route
             path="/admin/usuarios/editar"
             element={<EditarUsuario />}
