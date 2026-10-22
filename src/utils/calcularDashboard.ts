@@ -1,4 +1,5 @@
 import type { Produto } from "../types/Produto";
+import type { ItemEstoque } from "../types/ItemEstoque";
 
 export interface DadosDashboard {
   total: number;
@@ -52,3 +53,23 @@ export const calcularDashboard = (produtos: Produto[]): DadosDashboard => {
     totalBebidas: totalBebidas,
   };
 };
+
+  export interface DadosEstoque {
+    totalUnidades: number;
+    ranking: ItemEstoque[];
+  }
+
+  export const calcularEstoque = (estoque: ItemEstoque[]): DadosEstoque => {
+    let totalUnidades = 0;
+
+    for (let i = 0; i < estoque.length; i++) {
+      totalUnidades = totalUnidades + estoque[i].quantidade;
+    }
+
+    const ranking = estoque.slice().sort((a, b) => b.quantidade - a.quantidade);
+
+    return {
+      totalUnidades: totalUnidades,
+      ranking: ranking,
+    };
+  };
