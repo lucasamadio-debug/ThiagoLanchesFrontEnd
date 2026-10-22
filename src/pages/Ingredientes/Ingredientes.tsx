@@ -1,5 +1,7 @@
 
+import { useState } from "react";
 import { Link } from "react-router-dom";
+import Paginacao from "../../components/Paginacao/Paginacao";
 
 interface Ingrediente {
   id: number;
@@ -10,8 +12,25 @@ const Ingredientes = () => {
   // TODO: Buscar os ingredientes na API do backend.
   const ingredientes: Ingrediente[] = [];
 
+  const [paginaAtual, setPaginaAtual] = useState(1);
+
+  // Paginação de 5 ingredientes por página
+  const itensPorPagina = 5;
+
+  const totalPaginas = Math.ceil(
+    ingredientes.length / itensPorPagina
+  );
+
+  const indiceInicial = (paginaAtual - 1) * itensPorPagina;
+
+  const ingredientesPagina = ingredientes.slice(
+    indiceInicial,
+    indiceInicial + itensPorPagina
+  );
+
   const excluirIngrediente = (_id: number) => {
     // TODO: Conectar com a API para excluir o ingrediente.
+    // Atualizar a listagem após a exclusão.
   };
 
   return (
@@ -39,7 +58,7 @@ const Ingredientes = () => {
             </thead>
 
             <tbody>
-              {ingredientes.map((ingrediente) => (
+              {ingredientesPagina.map((ingrediente) => (
                 <tr key={ingrediente.id}>
                   <td className="ps-3 fw-bold">
                     {ingrediente.id}
@@ -65,6 +84,7 @@ const Ingredientes = () => {
                         onClick={() =>
                           excluirIngrediente(ingrediente.id)
                         }
+                        disabled
                       >
                         Excluir
                       </button>
@@ -73,11 +93,21 @@ const Ingredientes = () => {
                 </tr>
               ))}
 
-              {/* TODO: Preencher a tabela com dados da API */}
+              {/* TODO: Integrar listagem com a API do backend */}
             </tbody>
           </table>
         </div>
       </div>
+
+      {totalPaginas > 1 && (
+        <div className="card-footer bg-white">
+          <Paginacao
+            paginaAtual={paginaAtual}
+            totalPaginas={totalPaginas}
+            aoMudar={setPaginaAtual}
+          />
+        </div>
+      )}
     </div>
   );
 };

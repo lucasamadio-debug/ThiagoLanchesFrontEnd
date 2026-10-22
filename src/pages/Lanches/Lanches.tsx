@@ -1,6 +1,7 @@
 
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import Paginacao from "../../components/Paginacao/Paginacao";
 import { buscarProdutos } from "../../services/produtosService";
 import type { Produto } from "../../types/Produto";
 import { formatarPreco } from "../../utils/formatar";
@@ -9,6 +10,20 @@ const Lanches = () => {
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [mensagemErro, setMensagemErro] = useState("");
+  const [paginaAtual, setPaginaAtual] = useState(1);
+
+  const itensPorPagina = 10;
+
+  const totalPaginas = Math.ceil(
+    produtos.length / itensPorPagina
+  );
+
+  const indiceInicial = (paginaAtual - 1) * itensPorPagina;
+
+  const produtosPagina = produtos.slice(
+    indiceInicial,
+    indiceInicial + itensPorPagina
+  );
 
   useEffect(() => {
     const carregar = async () => {
@@ -21,17 +36,17 @@ const Lanches = () => {
         } else {
           setMensagemErro("Erro ao carregar os produtos.");
         }
+      } finally {
+        setCarregando(false);
       }
-
-      setCarregando(false);
     };
 
     carregar();
   }, []);
 
   const excluirLanche = (_id: number) => {
-    // TODO: Conectar com a API do backend
-    // para excluir o lanche pelo ID.
+    // TODO: Integrar exclusão com a API do backend.
+    // Atualizar a listagem depois da exclusão.
   };
 
   if (carregando) {
@@ -73,7 +88,7 @@ const Lanches = () => {
             </thead>
 
             <tbody>
-              {produtos.map((produto) => (
+              {produtosPagina.map((produto) => (
                 <tr key={produto.id}>
                   <td className="ps-3 fw-bold">
                     {produto.id}
@@ -128,6 +143,14 @@ const Lanches = () => {
             </tbody>
           </table>
         </div>
+      </div>
+
+      <div className="card-footer bg-white">
+        <Paginacao
+          paginaAtual={paginaAtual}
+          totalPaginas={totalPaginas}
+          aoMudar={setPaginaAtual}
+        />
       </div>
     </div>
   );

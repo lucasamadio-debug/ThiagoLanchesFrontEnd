@@ -1,6 +1,7 @@
 
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import Paginacao from "../../components/Paginacao/Paginacao";
 import { buscarEstoque } from "../../services/estoqueService";
 import type { ItemEstoque } from "../../types/ItemEstoque";
 import { classeBadgeEstoque } from "../../utils/formatar";
@@ -9,6 +10,21 @@ const Estoque = () => {
   const [estoque, setEstoque] = useState<ItemEstoque[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [mensagemErro, setMensagemErro] = useState("");
+  const [paginaAtual, setPaginaAtual] = useState(1);
+
+  // Paginação
+  const itensPorPagina = 10;
+
+  const totalPaginas = Math.ceil(
+    estoque.length / itensPorPagina
+  );
+
+  const indiceInicial = (paginaAtual - 1) * itensPorPagina;
+
+  const estoquePagina = estoque.slice(
+    indiceInicial,
+    indiceInicial + itensPorPagina
+  );
 
   useEffect(() => {
     const carregar = async () => {
@@ -21,13 +37,18 @@ const Estoque = () => {
         } else {
           setMensagemErro("Erro ao carregar o estoque.");
         }
+      } finally {
+        setCarregando(false);
       }
-
-      setCarregando(false);
     };
 
     carregar();
   }, []);
+
+  const excluirEstoque = (_id: number) => {
+    // TODO: Conectar com a API do backend para excluir.
+    // Atualizar a lista após a exclusão confirmada.
+  };
 
   if (carregando) {
     return <p>Carregando estoque...</p>;
@@ -67,7 +88,7 @@ const Estoque = () => {
             </thead>
 
             <tbody>
-              {estoque.map((item) => (
+              {estoquePagina.map((item) => (
                 <tr key={item.id}>
                   <td className="ps-3 fw-bold">
                     {item.produto}
@@ -88,21 +109,42 @@ const Estoque = () => {
                   </td>
 
                   <td className="text-end pe-3">
-                    <Link
-                      to={"/admin/estoque/editar/" + item.id}
-                      className="btn btn-warning btn-sm"
-                    >
-                      Editar
-                    </Link>
+                    <div className="d-flex justify-content-end gap-1">
+                      <Link
+                        to={"/admin/estoque/editar/" + item.id}
+                        className="btn btn-warning btn-sm"
+                      >
+                        Editar
+                      </Link>
+
+                      <button
+                        type="button"
+                        className="btn btn-danger btn-sm"
+                        onClick={() => excluirEstoque(item.id)}
+                        disabled
+                      >
+                        Excluir
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
 
-              {/* TODO: Integrar listagem com a API do backend */}
+              {/* TODO: Integrar com a API real de estoque */}
             </tbody>
           </table>
         </div>
       </div>
+
+      {totalPaginas > 1 && (
+        <div className="card-footer bg-white">
+          <Paginacao
+            paginaAtual={paginaAtual}
+            totalPaginas={totalPaginas}
+            aoMudar={setPaginaAtual}
+          />
+        </div>
+      )}
     </div>
   );
 };

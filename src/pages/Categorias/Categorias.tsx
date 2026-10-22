@@ -1,5 +1,7 @@
 
+import { useState } from "react";
 import { Link } from "react-router-dom";
+import Paginacao from "../../components/Paginacao/Paginacao";
 
 interface Categoria {
   id: number;
@@ -10,8 +12,25 @@ const Categorias = () => {
   // TODO: Buscar as categorias na API do backend.
   const categorias: Categoria[] = [];
 
+  const [paginaAtual, setPaginaAtual] = useState(1);
+
+  
+  const itensPorPagina = 5;
+
+  const totalPaginas = Math.ceil(
+    categorias.length / itensPorPagina
+  );
+
+  const indiceInicial = (paginaAtual - 1) * itensPorPagina;
+
+  const categoriasPagina = categorias.slice(
+    indiceInicial,
+    indiceInicial + itensPorPagina
+  );
+
   const excluirCategoria = (_id: number) => {
     // TODO: Conectar com a API para excluir a categoria.
+    // Atualizar a listagem após a exclusão.
   };
 
   return (
@@ -39,7 +58,7 @@ const Categorias = () => {
             </thead>
 
             <tbody>
-              {categorias.map((categoria) => (
+              {categoriasPagina.map((categoria) => (
                 <tr key={categoria.id}>
                   <td className="ps-3 fw-bold">
                     {categoria.id}
@@ -72,10 +91,22 @@ const Categorias = () => {
                   </td>
                 </tr>
               ))}
+
+              {/* TODO: Integrar listagem com a API */}
             </tbody>
           </table>
         </div>
       </div>
+
+      {totalPaginas > 1 && (
+        <div className="card-footer bg-white">
+          <Paginacao
+            paginaAtual={paginaAtual}
+            totalPaginas={totalPaginas}
+            aoMudar={setPaginaAtual}
+          />
+        </div>
+      )}
     </div>
   );
 };

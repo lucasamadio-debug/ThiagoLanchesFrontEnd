@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import CampoFormulario from "../../components/CampoFormulario/CampoFormulario";
 import { cadastroSchema } from "../../schemas/usuario";
 import { cadastrarUsuario } from "../../services/authService";
@@ -71,6 +71,13 @@ const Cadastro = () => {
       >
         <div className="card-header text-center bg-white py-3">
           <h3 className="m-0">Cadastro de Usuário</h3>
+
+          <Link
+            to="/admin/usuarios/editar"
+            className="btn btn-outline-dark btn-sm mt-3"
+          >
+            Editar meus dados
+          </Link>
         </div>
 
         <div className="card-body">
