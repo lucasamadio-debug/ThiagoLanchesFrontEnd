@@ -4,11 +4,9 @@ import type { FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
 import CampoFormulario from "../../components/CampoFormulario/CampoFormulario";
 import { buscarProdutos } from "../../services/produtosService";
+import { buscarIngredientes } from "../../services/ingredientesService";
+import type { Ingrediente } from "../../services/ingredientesService";
 
-interface Ingrediente {
-  id: number;
-  nome: string;
-}
 
 const FormularioLanche = () => {
   const { id } = useParams();
@@ -25,15 +23,19 @@ const FormularioLanche = () => {
 
   const [carregando, setCarregando] = useState(true);
   const [mensagemErro, setMensagemErro] = useState("");
+  
 
-  // TODO: Buscar todos os ingredientes na API do backend.
-  // Substituir esta lista vazia pelos ingredientes reais.
-  const ingredientes: Ingrediente[] = [];
-
+  const [ingredientes, setIngredientes] = useState<Ingrediente[]>([]);
   useEffect(() => {
+
     const carregar = async () => {
       try {
-        const produtos = await buscarProdutos();
+        const [produtos, dadosIngredientes] = await Promise.all([
+          buscarProdutos(),
+          buscarIngredientes(),
+        ]);
+
+        setIngredientes(dadosIngredientes);
 
         const listaCategorias = produtos.map(
           (produto) => produto.categoria
@@ -51,8 +53,6 @@ const FormularioLanche = () => {
             setCategoria(produto.categoria);
             setPreco(String(produto.preco));
 
-            // TODO: Buscar os ingredientes deste lanche na API.
-            // Preencher as quantidades já cadastradas na receita.
           } else {
             setMensagemErro("Lanche não encontrado.");
           }

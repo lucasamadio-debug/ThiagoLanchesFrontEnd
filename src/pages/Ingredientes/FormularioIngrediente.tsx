@@ -1,38 +1,111 @@
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import CampoFormulario from "../../components/CampoFormulario/CampoFormulario";
 
+import {
+  buscarIngredientes,
+  cadastrarIngrediente,
+  editarIngrediente,
+} from "../../services/ingredientesService";
+
 const FormularioIngrediente = () => {
+  const navigate = useNavigate();
   const { id } = useParams();
+
   const editando = id !== undefined;
 
   const [nome, setNome] = useState("");
   const [mensagemErro, setMensagemErro] = useState("");
+  const [carregando, setCarregando] = useState(false);
+  const [carregandoDados, setCarregandoDados] = useState(editando);
 
-  // TODO: Ao editar, buscar o ingrediente pelo ID na API.
-  // Preencher o nome com os dados recebidos.
+  useEffect(() => {
+    if (!editando) {
+      return;
+    }
 
-  const salvarIngrediente = (evento: FormEvent) => {
+    let ativo = true;
+
+    const carregarIngrediente = async () => {
+      try {
+        const ingredientes = await buscarIngredientes();
+
+        const ingrediente = ingredientes.find(
+          (item) => item.id === Number(id)
+        );
+
+        if (!ativo) return;
+
+        if (ingrediente) {
+          setNome(ingrediente.nome);
+        } else {
+          setMensagemErro("Ingrediente não encontrado.");
+        }
+      } catch (erro) {
+        if (ativo) {
+          setMensagemErro(
+            erro instanceof Error
+              ? erro.message
+              : "Erro ao carregar ingrediente."
+          );
+        }
+      } finally {
+        if (ativo) {
+          setCarregandoDados(false);
+        }
+      }
+    };
+
+    carregarIngrediente();
+
+    return () => {
+      ativo = false;
+    };
+  }, [id, editando]);
+
+  const salvarIngrediente = async (evento: FormEvent) => {
     evento.preventDefault();
+    setMensagemErro("");
 
-    if (nome.trim() === "") {
+    const nomeTratado = nome.trim();
+
+    if (nomeTratado === "") {
       setMensagemErro("Preencha o nome do ingrediente.");
       return;
     }
 
-    setMensagemErro("");
-
-    if (editando) {
-      // TODO: Conectar com a API para editar o ingrediente.
-    } else {
-      // TODO: Conectar com a API para cadastrar o ingrediente.
+    if (nomeTratado.length > 100) {
+      setMensagemErro("O nome deve ter no máximo 100 caracteres.");
+      return;
     }
 
-    // TODO: Após salvar na API,
-    // redirecionar para /admin/ingredientes.
+    setCarregando(true);
+
+    try {
+      if (editando) {
+        await editarIngrediente(Number(id), nomeTratado);
+      } else {
+        await cadastrarIngrediente(nomeTratado);
+      }
+
+      navigate("/admin/ingredientes");
+
+    } catch (erro) {
+      if (erro instanceof Error) {
+        setMensagemErro(erro.message);
+      } else {
+        setMensagemErro("Erro ao salvar ingrediente.");
+      }
+    } finally {
+      setCarregando(false);
+    }
   };
+
+  if (carregandoDados) {
+    return <p>Carregando ingrediente...</p>;
+  }
 
   return (
     <div
@@ -67,8 +140,9 @@ const FormularioIngrediente = () => {
           <button
             type="submit"
             className="btn btn-success me-2"
+            disabled={carregando || nome.trim() === ""}
           >
-            Salvar
+            {carregando ? "Salvando..." : "Salvar"}
           </button>
 
           <Link

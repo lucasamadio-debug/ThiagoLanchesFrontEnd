@@ -1,20 +1,22 @@
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import Paginacao from "../../components/Paginacao/Paginacao";
 
-interface Ingrediente {
-  id: number;
-  nome: string;
-}
+import {
+  buscarIngredientes,
+  excluirIngrediente,
+} from "../../services/ingredientesService";
+
+import type { Ingrediente } from "../../services/ingredientesService";
 
 const Ingredientes = () => {
-  // TODO: Buscar os ingredientes na API do backend.
-  const ingredientes: Ingrediente[] = [];
-
+  const [ingredientes, setIngredientes] = useState<Ingrediente[]>([]);
   const [paginaAtual, setPaginaAtual] = useState(1);
+  const [carregando, setCarregando] = useState(true);
+  const [mensagemErro, setMensagemErro] = useState("");
+  const [excluindoId, setExcluindoId] = useState<number | null>(null);
 
-  // Paginação de 5 ingredientes por página
   const itensPorPagina = 5;
 
   const totalPaginas = Math.ceil(
@@ -28,10 +30,70 @@ const Ingredientes = () => {
     indiceInicial + itensPorPagina
   );
 
-  const excluirIngrediente = (_id: number) => {
-    // TODO: Conectar com a API para excluir o ingrediente.
-    // Atualizar a listagem após a exclusão.
+  useEffect(() => {
+    const carregar = async () => {
+      try {
+        const dados = await buscarIngredientes();
+        setIngredientes(dados);
+      } catch (erro) {
+        setMensagemErro(
+          erro instanceof Error
+            ? erro.message
+            : "Erro ao carregar os ingredientes."
+        );
+      } finally {
+        setCarregando(false);
+      }
+    };
+
+    carregar();
+  }, []);
+
+  const excluir = async (ingrediente: Ingrediente) => {
+    const confirmar = window.confirm(
+      "Deseja realmente excluir o ingrediente " +
+      ingrediente.nome + "?"
+    );
+
+    if (!confirmar) {
+      return;
+    }
+
+    setMensagemErro("");
+    setExcluindoId(ingrediente.id);
+
+    try {
+      await excluirIngrediente(ingrediente.id);
+
+      const novaLista = ingredientes.filter(
+        (item) => item.id !== ingrediente.id
+      );
+
+      setIngredientes(novaLista);
+
+      const novasPaginas = Math.max(
+        1,
+        Math.ceil(novaLista.length / itensPorPagina)
+      );
+
+      setPaginaAtual((pagina) =>
+        Math.min(pagina, novasPaginas)
+      );
+
+    } catch (erro) {
+      setMensagemErro(
+        erro instanceof Error
+          ? erro.message
+          : "Erro ao excluir ingrediente."
+      );
+    } finally {
+      setExcluindoId(null);
+    }
   };
+
+  if (carregando) {
+    return <p>Carregando ingredientes...</p>;
+  }
 
   return (
     <div className="card shadow-sm border-0">
@@ -45,6 +107,12 @@ const Ingredientes = () => {
           Cadastrar Novo
         </Link>
       </div>
+
+      {mensagemErro && (
+        <div className="alert alert-danger m-3">
+          {mensagemErro}
+        </div>
+      )}
 
       <div className="card-body p-0">
         <div className="table-responsive">
@@ -81,19 +149,17 @@ const Ingredientes = () => {
                       <button
                         type="button"
                         className="btn btn-danger btn-sm"
-                        onClick={() =>
-                          excluirIngrediente(ingrediente.id)
-                        }
-                        disabled
+                        onClick={() => excluir(ingrediente)}
+                        disabled={excluindoId !== null}
                       >
-                        Excluir
+                        {excluindoId === ingrediente.id
+                          ? "Excluindo..."
+                          : "Excluir"}
                       </button>
                     </div>
                   </td>
                 </tr>
               ))}
-
-              {/* TODO: Integrar listagem com a API do backend */}
             </tbody>
           </table>
         </div>
