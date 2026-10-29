@@ -4,15 +4,13 @@ import { Link } from "react-router-dom";
 import Paginacao from "../../components/Paginacao/Paginacao";
 import { buscarEstoque } from "../../services/estoqueService";
 import type { ItemEstoque } from "../../types/ItemEstoque";
-import { classeBadgeEstoque } from "../../utils/formatar";
 
 const Estoque = () => {
   const [estoque, setEstoque] = useState<ItemEstoque[]>([]);
+  const [paginaAtual, setPaginaAtual] = useState(1);
   const [carregando, setCarregando] = useState(true);
   const [mensagemErro, setMensagemErro] = useState("");
-  const [paginaAtual, setPaginaAtual] = useState(1);
 
-  // Paginação
   const itensPorPagina = 10;
 
   const totalPaginas = Math.ceil(
@@ -27,39 +25,26 @@ const Estoque = () => {
   );
 
   useEffect(() => {
-    const carregar = async () => {
+    const carregarEstoque = async () => {
       try {
         const dados = await buscarEstoque();
         setEstoque(dados);
       } catch (erro) {
-        if (erro instanceof Error) {
-          setMensagemErro(erro.message);
-        } else {
-          setMensagemErro("Erro ao carregar o estoque.");
-        }
+        setMensagemErro(
+          erro instanceof Error
+            ? erro.message
+            : "Erro ao carregar estoque."
+        );
       } finally {
         setCarregando(false);
       }
     };
 
-    carregar();
+    carregarEstoque();
   }, []);
-
-  const excluirEstoque = (_id: number) => {
-    // TODO: Conectar com a API do backend para excluir.
-    // Atualizar a lista após a exclusão confirmada.
-  };
 
   if (carregando) {
     return <p>Carregando estoque...</p>;
-  }
-
-  if (mensagemErro) {
-    return (
-      <div className="alert alert-danger">
-        {mensagemErro}
-      </div>
-    );
   }
 
   return (
@@ -75,6 +60,12 @@ const Estoque = () => {
         </Link>
       </div>
 
+      {mensagemErro && (
+        <div className="alert alert-danger m-3">
+          {mensagemErro}
+        </div>
+      )}
+
       <div className="card-body p-0">
         <div className="table-responsive">
           <table className="table table-hover align-middle mb-0">
@@ -83,7 +74,9 @@ const Estoque = () => {
                 <th className="ps-3">Produto</th>
                 <th>Categoria</th>
                 <th>Quantidade</th>
-                <th className="text-end pe-3">Opções</th>
+                <th className="text-end pe-3">
+                  Opções
+                </th>
               </tr>
             </thead>
 
@@ -102,25 +95,32 @@ const Estoque = () => {
 
                   <td>
                     <span
-                      className={classeBadgeEstoque(item.quantidade)}
+                      className={
+                        item.quantidade < 5
+                          ? "badge bg-danger"
+                          : "badge bg-success"
+                      }
                     >
-                      {item.quantidade} un.
+                      {item.quantidade}
                     </span>
                   </td>
 
                   <td className="text-end pe-3">
                     <div className="d-flex justify-content-end gap-1">
                       <Link
-                        to={"/admin/estoque/editar/" + item.id}
+                        to={
+                          "/admin/estoque/editar/" +
+                          item.id
+                        }
                         className="btn btn-warning btn-sm"
                       >
                         Editar
                       </Link>
 
+                      {/* TODO: Integrar DELETE com a API */}
                       <button
                         type="button"
                         className="btn btn-danger btn-sm"
-                        onClick={() => excluirEstoque(item.id)}
                         disabled
                       >
                         Excluir
@@ -130,7 +130,16 @@ const Estoque = () => {
                 </tr>
               ))}
 
-              {/* TODO: Integrar com a API real de estoque */}
+              {estoquePagina.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={4}
+                    className="text-center py-4"
+                  >
+                    Nenhum item cadastrado no estoque.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

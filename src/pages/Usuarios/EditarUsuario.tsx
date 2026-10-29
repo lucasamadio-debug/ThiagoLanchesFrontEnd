@@ -126,9 +126,11 @@ const EditarUsuario = () => {
             aoMudar={setConfirmarSenha}
           />
 
+          {/* TODO: Habilitar quando a API de edição estiver pronta */}
           <button
             type="submit"
             className="btn btn-success me-2"
+            disabled
           >
             Salvar Alterações
           </button>

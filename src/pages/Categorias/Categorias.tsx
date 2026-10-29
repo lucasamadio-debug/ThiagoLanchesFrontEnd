@@ -9,12 +9,11 @@ interface Categoria {
 }
 
 const Categorias = () => {
-  // TODO: Buscar as categorias na API do backend.
+  // TODO: Buscar as categorias na API.
   const categorias: Categoria[] = [];
 
   const [paginaAtual, setPaginaAtual] = useState(1);
 
-  
   const itensPorPagina = 5;
 
   const totalPaginas = Math.ceil(
@@ -27,11 +26,6 @@ const Categorias = () => {
     indiceInicial,
     indiceInicial + itensPorPagina
   );
-
-  const excluirCategoria = (_id: number) => {
-    // TODO: Conectar com a API para excluir a categoria.
-    // Atualizar a listagem após a exclusão.
-  };
 
   return (
     <div className="card shadow-sm border-0">
@@ -53,7 +47,9 @@ const Categorias = () => {
               <tr>
                 <th className="ps-3">ID</th>
                 <th>Nome da Categoria</th>
-                <th className="text-end pe-3">Opções</th>
+                <th className="text-end pe-3">
+                  Opções
+                </th>
               </tr>
             </thead>
 
@@ -78,12 +74,11 @@ const Categorias = () => {
                         Editar
                       </Link>
 
+                      {/* TODO: Conectar exclusão com a API */}
                       <button
                         type="button"
                         className="btn btn-danger btn-sm"
-                        onClick={() =>
-                          excluirCategoria(categoria.id)
-                        }
+                        disabled
                       >
                         Excluir
                       </button>
@@ -92,7 +87,16 @@ const Categorias = () => {
                 </tr>
               ))}
 
-              {/* TODO: Integrar listagem com a API */}
+              {categoriasPagina.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={3}
+                    className="text-center py-4"
+                  >
+                    Nenhuma categoria disponível.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

@@ -7,6 +7,12 @@ import { buscarProdutos } from "../../services/produtosService";
 import { buscarIngredientes } from "../../services/ingredientesService";
 import type { Ingrediente } from "../../services/ingredientesService";
 
+interface ErrosFormulario {
+  nome?: string;
+  categoria?: string;
+  preco?: string;
+  ingredientes?: string;
+}
 
 const FormularioLanche = () => {
   const { id } = useParams();
@@ -15,58 +21,77 @@ const FormularioLanche = () => {
   const [nome, setNome] = useState("");
   const [categoria, setCategoria] = useState("");
   const [preco, setPreco] = useState("");
-  const [categorias, setCategorias] = useState<string[]>([]);
+  const [popular, setPopular] = useState(false);
 
-  const [quantidades, setQuantidades] = useState<
-    Record<number, number>
-  >({});
+  const [categorias, setCategorias] = useState<string[]>([]);
+  const [ingredientes, setIngredientes] = useState<Ingrediente[]>([]);
+  const [quantidades, setQuantidades] = useState<Record<number, number>>({});
 
   const [carregando, setCarregando] = useState(true);
   const [mensagemErro, setMensagemErro] = useState("");
-  
+  const [erros, setErros] = useState<ErrosFormulario>({});
 
-  const [ingredientes, setIngredientes] = useState<Ingrediente[]>([]);
   useEffect(() => {
+    let ativo = true;
 
     const carregar = async () => {
       try {
-        const [produtos, dadosIngredientes] = await Promise.all([
+        const [produtos, ingredientesApi] = await Promise.all([
           buscarProdutos(),
           buscarIngredientes(),
         ]);
 
-        setIngredientes(dadosIngredientes);
+        if (!ativo) return;
 
-        const listaCategorias = produtos.map(
-          (produto) => produto.categoria
-        );
+        setIngredientes(ingredientesApi);
 
-        setCategorias([...new Set(listaCategorias)]);
+        // TODO: Substituir pela API de categorias quando estiver pronta.
+        // Por enquanto, utiliza as categorias dos produtos existentes.
+        const categoriasExistentes = produtos
+          .map((produto) => produto.categoria)
+          .filter((valor): valor is string => Boolean(valor));
+
+        setCategorias([...new Set(categoriasExistentes)]);
 
         if (editando) {
           const produto = produtos.find(
-            (produto) => produto.id === Number(id)
+            (item) => item.id === Number(id)
           );
 
-          if (produto) {
-            setNome(produto.nome);
-            setCategoria(produto.categoria);
-            setPreco(String(produto.preco));
-
-          } else {
+          if (!produto) {
             setMensagemErro("Lanche não encontrado.");
+            return;
           }
-        }
 
-        // TODO: Carregar os ingredientes cadastrados no banco.
-      } catch {
-        setMensagemErro("Não foi possível carregar os dados.");
+          setNome(produto.nome);
+          setCategoria(produto.categoria);
+          setPreco(String(produto.preco));
+          setPopular(Boolean(produto.popular));
+
+          // TODO: Quando a API de produtos retornar
+          // as quantidades dos ingredientes,
+          // preencher o estado quantidades aqui.
+        }
+      } catch (erro) {
+        if (ativo) {
+          setMensagemErro(
+            erro instanceof Error
+              ? erro.message
+              : "Não foi possível carregar os dados."
+          );
+        }
       } finally {
-        setCarregando(false);
+        if (ativo) {
+          setCarregando(false);
+        }
       }
     };
 
     carregar();
+
+    return () => {
+      ativo = false;
+    };
   }, [id, editando]);
 
   const alterarQuantidade = (
@@ -74,49 +99,105 @@ const FormularioLanche = () => {
     valor: number
   ) => {
     setQuantidades((quantidadesAtuais) => {
-      const quantidadeAtual =
-        quantidadesAtuais[idIngrediente] || 0;
-
-      const novaQuantidade = Math.max(
-        0,
-        quantidadeAtual + valor
-      );
+      const atual = quantidadesAtuais[idIngrediente] || 0;
 
       return {
         ...quantidadesAtuais,
-        [idIngrediente]: novaQuantidade,
+        [idIngrediente]: Math.max(0, atual + valor),
       };
     });
+
+    setErros((atuais) => ({
+      ...atuais,
+      ingredientes: undefined,
+    }));
   };
 
-  const salvarLanche = (evento: FormEvent) => {
+  const salvarLanche = (evento: FormEvent<HTMLFormElement>) => {
     evento.preventDefault();
 
+    const novosErros: ErrosFormulario = {};
+
+    const nomeTratado = nome.trim();
+    const precoNormalizado = preco.trim().replace(",", ".");
+    const valorPreco = Number(precoNormalizado);
+
+    // Validação do nome
+    if (nomeTratado === "") {
+      novosErros.nome = "Informe o nome do lanche.";
+    } else if (nomeTratado.length > 100) {
+      novosErros.nome =
+        "O nome deve ter no máximo 100 caracteres.";
+    }
+
+    // Validação da categoria
     if (
-      nome.trim() === "" ||
       categoria === "" ||
-      preco.trim() === "" ||
-      !Number.isFinite(Number(preco)) ||
-      Number(preco) <= 0
+      !categorias.includes(categoria)
     ) {
-      alert("Preencha os campos corretamente.");
+      novosErros.categoria =
+        "Selecione uma categoria válida.";
+    }
+
+    // Validação do preço
+    if (
+      !/^\d+(\.\d{1,2})?$/.test(precoNormalizado) ||
+      !Number.isFinite(valorPreco) ||
+      valorPreco <= 0
+    ) {
+      novosErros.preco =
+        "Digite um preço maior que zero (ex.: 15,50).";
+    }
+
+    // Ingredientes selecionados no formulário
+    const ingredientesSelecionados = Object.entries(quantidades)
+      .filter(([, quantidade]) => quantidade > 0)
+      .map(([idIngrediente, quantidade]) => ({
+        idIngrediente: Number(idIngrediente),
+        quantidade,
+      }));
+
+    // Validação dos ingredientes
+    if (ingredientesSelecionados.length === 0) {
+      novosErros.ingredientes =
+        "Selecione pelo menos um ingrediente.";
+    }
+
+    setErros(novosErros);
+
+    if (Object.keys(novosErros).length > 0) {
       return;
     }
 
-    // TODO: Ao integrar a API, montar a lista
-    // dos ingredientes com quantidade maior que zero.
+    // TODO: Integrar cadastro e edição de lanches com a API.
     //
-    // Cada item deverá ter:
-    // - ID do ingrediente
-    // - Quantidade utilizada no lanche
-
-    if (editando) {
-      // TODO: Enviar alterações do lanche e da receita.
-    } else {
-      // TODO: Cadastrar lanche e associar ingredientes.
-    }
-
-    // TODO: Redirecionar após confirmação da API.
+    // Dados preparados:
+    // nomeTratado
+    // valorPreco
+    // popular
+    // categoria
+    // ingredientesSelecionados
+    //
+    // Quando o backend estiver pronto:
+    //
+    // 1. Buscar as categorias com seus IDs reais.
+    //
+    // 2. Substituir a categoria em texto
+    // pelo ID correspondente.
+    //
+    // 3. Enviar os ingredientes selecionados
+    // com suas respectivas quantidades.
+    //
+    // 4. No cadastro, chamar cadastrarLanche().
+    //
+    // 5. Na edição, chamar a função de atualização
+    // e carregar a receita existente.
+    //
+    // 6. Redirecionar para /admin/lanches somente
+    // quando o backend confirmar o salvamento.
+    //
+    // O botão Salvar permanece desativado
+    // enquanto essa integração não estiver pronta.
   };
 
   if (carregando) {
@@ -125,7 +206,7 @@ const FormularioLanche = () => {
 
   if (mensagemErro) {
     return (
-      <div>
+      <div style={{ marginTop: "100px" }}>
         <div className="alert alert-danger">
           {mensagemErro}
         </div>
@@ -154,16 +235,26 @@ const FormularioLanche = () => {
       </div>
 
       <div className="card-body">
-        <form onSubmit={salvarLanche}>
+        <form onSubmit={salvarLanche} noValidate>
+          {/* Nome do lanche */}
           <CampoFormulario
             id="nome"
             rotulo="Nome do Lanche:"
             tipo="text"
             placeholder="Digite o nome do lanche"
             valor={nome}
-            aoMudar={setNome}
+            aoMudar={(valor) => {
+              setNome(valor);
+
+              setErros((atuais) => ({
+                ...atuais,
+                nome: undefined,
+              }));
+            }}
+            erro={erros.nome}
           />
 
+          {/* Categoria */}
           <div className="mb-3">
             <label
               htmlFor="categoria"
@@ -174,12 +265,20 @@ const FormularioLanche = () => {
 
             <select
               id="categoria"
-              className="form-control"
-              value={categoria}
-              onChange={(evento) =>
-                setCategoria(evento.target.value)
+              className={
+                erros.categoria
+                  ? "form-select is-invalid"
+                  : "form-select"
               }
-              required
+              value={categoria}
+              onChange={(evento) => {
+                setCategoria(evento.target.value);
+
+                setErros((atuais) => ({
+                  ...atuais,
+                  categoria: undefined,
+                }));
+              }}
             >
               <option value="">
                 Selecione uma categoria
@@ -191,24 +290,60 @@ const FormularioLanche = () => {
                 </option>
               ))}
             </select>
+
+            {erros.categoria && (
+              <div className="invalid-feedback">
+                {erros.categoria}
+              </div>
+            )}
           </div>
 
+          {/* Preço */}
           <CampoFormulario
             id="preco"
             rotulo="Preço (R$):"
-            tipo="number"
-            placeholder="0,00"
+            tipo="text"
+            placeholder="Ex.: 15,50"
             valor={preco}
-            aoMudar={setPreco}
+            aoMudar={(valor) => {
+              setPreco(valor);
+
+              setErros((atuais) => ({
+                ...atuais,
+                preco: undefined,
+              }));
+            }}
+            erro={erros.preco}
           />
+
+          {/* Lanche popular */}
+          <div className="form-check mb-3">
+            <input
+              id="popular"
+              type="checkbox"
+              className="form-check-input"
+              checked={popular}
+              onChange={(evento) => {
+                setPopular(evento.target.checked);
+              }}
+            />
+
+            <label
+              htmlFor="popular"
+              className="form-check-label"
+            >
+              Marcar como lanche popular
+            </label>
+          </div>
 
           <hr className="my-4" />
 
+          {/* Tabela de ingredientes */}
           <h4 className="mb-3">
             Ingredientes do Lanche
           </h4>
 
-          <div className="table-responsive mb-4">
+          <div className="table-responsive mb-2">
             <table className="table table-hover align-middle">
               <thead className="table-light">
                 <tr>
@@ -231,6 +366,7 @@ const FormularioLanche = () => {
 
                     <td className="text-end pe-3">
                       <div className="d-flex justify-content-end align-items-center gap-2">
+                        {/* Diminuir quantidade */}
                         <button
                           type="button"
                           className="btn btn-outline-danger btn-sm"
@@ -247,6 +383,7 @@ const FormularioLanche = () => {
                           −
                         </button>
 
+                        {/* Quantidade selecionada */}
                         <span
                           className="text-center fw-bold"
                           style={{ minWidth: "30px" }}
@@ -254,6 +391,7 @@ const FormularioLanche = () => {
                           {quantidades[ingrediente.id] || 0}
                         </span>
 
+                        {/* Aumentar quantidade */}
                         <button
                           type="button"
                           className="btn btn-outline-success btn-sm"
@@ -271,24 +409,45 @@ const FormularioLanche = () => {
                   </tr>
                 ))}
 
-                {/* TODO: Listar ingredientes reais da API */}
+                {ingredientes.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={2}
+                      className="text-center py-3"
+                    >
+                      Nenhum ingrediente cadastrado.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
 
-          <button
-            type="submit"
-            className="btn btn-success me-2"
-          >
-            Salvar
-          </button>
+          {erros.ingredientes && (
+            <div className="text-danger mb-3">
+              {erros.ingredientes}
+            </div>
+          )}
 
-          <Link
-            to="/admin/lanches"
-            className="btn btn-secondary"
-          >
-            Cancelar
-          </Link>
+          {/* Botões do formulário */}
+          <div className="mt-4">
+            {/* TODO: Habilitar após integrar
+                cadastro e edição com a API */}
+            <button
+              type="submit"
+              className="btn btn-success me-2"
+              disabled
+            >
+              Salvar
+            </button>
+
+            <Link
+              to="/admin/lanches"
+              className="btn btn-secondary"
+            >
+              Cancelar
+            </Link>
+          </div>
         </form>
       </div>
     </div>
