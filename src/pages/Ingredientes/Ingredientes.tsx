@@ -1,6 +1,7 @@
 
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+
 import Paginacao from "../../components/Paginacao/Paginacao";
 
 import {
@@ -9,6 +10,12 @@ import {
 } from "../../services/ingredientesService";
 
 import type { Ingrediente } from "../../services/ingredientesService";
+
+import {
+  alertaSucesso,
+  alertaErro,
+  confirmarExclusao,
+} from "../../utils/alertas";
 
 const Ingredientes = () => {
   const [ingredientes, setIngredientes] = useState<Ingrediente[]>([]);
@@ -50,17 +57,16 @@ const Ingredientes = () => {
   }, []);
 
   const excluir = async (ingrediente: Ingrediente) => {
-    const confirmar = window.confirm(
-      "Deseja realmente excluir o ingrediente " +
-      ingrediente.nome + "?"
+    if (excluindoId !== null) return;
+
+    const confirmado = await confirmarExclusao(
+      ingrediente.nome
     );
 
-    if (!confirmar) {
-      return;
-    }
+    if (!confirmado) return;
 
-    setMensagemErro("");
     setExcluindoId(ingrediente.id);
+    setMensagemErro("");
 
     try {
       await excluirIngrediente(ingrediente.id);
@@ -80,11 +86,14 @@ const Ingredientes = () => {
         Math.min(pagina, novasPaginas)
       );
 
+      await alertaSucesso(
+        "Ingrediente excluído com sucesso!"
+      );
     } catch (erro) {
-      setMensagemErro(
+      await alertaErro(
         erro instanceof Error
           ? erro.message
-          : "Erro ao excluir ingrediente."
+          : "Não foi possível excluir o ingrediente."
       );
     } finally {
       setExcluindoId(null);
@@ -121,7 +130,9 @@ const Ingredientes = () => {
               <tr>
                 <th className="ps-3">ID</th>
                 <th>Nome do Ingrediente</th>
-                <th className="text-end pe-3">Opções</th>
+                <th className="text-end pe-3">
+                  Opções
+                </th>
               </tr>
             </thead>
 
@@ -160,6 +171,17 @@ const Ingredientes = () => {
                   </td>
                 </tr>
               ))}
+
+              {ingredientes.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={3}
+                    className="text-center py-4"
+                  >
+                    Nenhum ingrediente cadastrado.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

@@ -1,61 +1,133 @@
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
+
 import CampoFormulario from "../../components/CampoFormulario/CampoFormulario";
 
-const FormularioCategoria = () => {
-  const { id } = useParams();
+import {
+  buscarCategoriaPorId,
+  cadastrarCategoria,
+  editarCategoria,
+} from "../../services/categoriasService";
 
+import {
+  alertaSucesso,
+  alertaErro,
+} from "../../utils/alertas";
+
+const FormularioCategoria = () => {
+  const navigate = useNavigate();
+  const { id } = useParams();
   const editando = id !== undefined;
 
   const [nome, setNome] = useState("");
   const [mensagemErro, setMensagemErro] = useState("");
+  const [carregando, setCarregando] = useState(editando);
+  const [salvando, setSalvando] = useState(false);
+  const [erroCarregamento, setErroCarregamento] = useState(false);
 
-  // TODO: Na edição, buscar a categoria pelo ID
-  // e preencher o campo nome com os dados da API.
+  useEffect(() => {
+    if (!id) return;
 
-  const alterarNome = (valor: string) => {
-    setNome(valor);
+    let ativo = true;
 
-    if (valor.trim() === "") {
-      setMensagemErro("Informe o nome da categoria.");
-    } else if (valor.trim().length > 100) {
-      setMensagemErro(
-        "O nome deve ter no máximo 100 caracteres."
-      );
-    } else {
-      setMensagemErro("");
-    }
-  };
+    const carregar = async () => {
+      try {
+        const categoria = await buscarCategoriaPorId(Number(id));
 
-  const salvarCategoria = (evento: FormEvent) => {
+        if (ativo) {
+          setNome(categoria.nome);
+        }
+      } catch (erro) {
+        if (ativo) {
+          setErroCarregamento(true);
+          setMensagemErro(
+            erro instanceof Error
+              ? erro.message
+              : "Erro ao carregar categoria."
+          );
+        }
+      } finally {
+        if (ativo) {
+          setCarregando(false);
+        }
+      }
+    };
+
+    carregar();
+
+    return () => {
+      ativo = false;
+    };
+  }, [id]);
+
+  const salvarCategoria = async (
+    evento: FormEvent<HTMLFormElement>
+  ) => {
     evento.preventDefault();
 
-    if (nome.trim() === "") {
-      setMensagemErro("Informe o nome da categoria.");
-      return;
-    }
-
-    if (nome.trim().length > 100) {
-      setMensagemErro(
-        "O nome deve ter no máximo 100 caracteres."
-      );
-      return;
-    }
+    if (salvando) return;
 
     setMensagemErro("");
 
-    // TODO: Conectar com a API.
-    //
-    // Se estiver cadastrando:
-    // Enviar o nome com POST.
-    //
-    // Se estiver editando:
-    // Enviar o ID e o nome com PUT.
-    //
-    // Redirecionar somente após salvar no banco.
+    const nomeTratado = nome.trim();
+
+    if (nomeTratado === "") {
+      setMensagemErro("Informe o nome da categoria.");
+      return;
+    }
+
+    if (nomeTratado.length > 100) {
+      setMensagemErro(
+        "O nome deve ter no máximo 100 caracteres."
+      );
+      return;
+    }
+
+    setSalvando(true);
+
+    try {
+      if (editando) {
+        await editarCategoria(Number(id), nomeTratado);
+        await alertaSucesso("Categoria editada com sucesso!");
+      } else {
+        await cadastrarCategoria(nomeTratado);
+        await alertaSucesso("Categoria cadastrada com sucesso!");
+      }
+
+      navigate("/admin/categorias");
+    } catch (erro) {
+      await alertaErro(
+        erro instanceof Error
+          ? erro.message
+          : "Não foi possível salvar a categoria."
+      );
+    } finally {
+      setSalvando(false);
+    }
   };
+
+  if (carregando) {
+    return <p>Carregando categoria...</p>;
+  }
+
+  if (erroCarregamento) {
+    return (
+      <div style={{ marginTop: "100px" }}>
+        <div className="alert alert-danger">
+          {mensagemErro}
+        </div>
+
+        <Link
+          to="/admin/categorias"
+          className="btn btn-secondary"
+        >
+          Voltar
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -78,17 +150,20 @@ const FormularioCategoria = () => {
             tipo="text"
             placeholder="Digite o nome da categoria"
             valor={nome}
-            aoMudar={alterarNome}
+            aoMudar={(valor) => {
+              setNome(valor);
+              setMensagemErro("");
+            }}
             erro={mensagemErro}
+            maxLength={100}
           />
 
-          {/* TODO: Habilitar após conectar a API */}
           <button
             type="submit"
             className="btn btn-success me-2"
-            disabled
+            disabled={salvando}
           >
-            Salvar
+            {salvando ? "Salvando..." : "Salvar"}
           </button>
 
           <Link

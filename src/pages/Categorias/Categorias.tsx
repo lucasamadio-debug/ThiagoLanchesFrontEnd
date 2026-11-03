@@ -1,18 +1,28 @@
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+
 import Paginacao from "../../components/Paginacao/Paginacao";
 
-interface Categoria {
-  id: number;
-  nome: string;
-}
+import {
+  buscarCategorias,
+  excluirCategoria,
+} from "../../services/categoriasService";
+
+import type { Categoria } from "../../services/categoriasService";
+
+import {
+  alertaSucesso,
+  alertaErro,
+  confirmarExclusao,
+} from "../../utils/alertas";
 
 const Categorias = () => {
-  // TODO: Buscar as categorias na API.
-  const categorias: Categoria[] = [];
-
+  const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [paginaAtual, setPaginaAtual] = useState(1);
+  const [carregando, setCarregando] = useState(true);
+  const [mensagemErro, setMensagemErro] = useState("");
+  const [excluindoId, setExcluindoId] = useState<number | null>(null);
 
   const itensPorPagina = 5;
 
@@ -27,6 +37,66 @@ const Categorias = () => {
     indiceInicial + itensPorPagina
   );
 
+  useEffect(() => {
+    const carregar = async () => {
+      try {
+        const dados = await buscarCategorias();
+        setCategorias(dados);
+      } catch (erro) {
+        setMensagemErro(
+          erro instanceof Error
+            ? erro.message
+            : "Erro ao carregar categorias."
+        );
+      } finally {
+        setCarregando(false);
+      }
+    };
+
+    carregar();
+  }, []);
+
+  const excluir = async (categoria: Categoria) => {
+    const confirmado = await confirmarExclusao(categoria.nome);
+
+    if (!confirmado) return;
+
+    setExcluindoId(categoria.id);
+
+    try {
+      await excluirCategoria(categoria.id);
+
+      const novaLista = categorias.filter(
+        (item) => item.id !== categoria.id
+      );
+
+      setCategorias(novaLista);
+
+      const novasPaginas = Math.max(
+        1,
+        Math.ceil(novaLista.length / itensPorPagina)
+      );
+
+      setPaginaAtual((pagina) =>
+        Math.min(pagina, novasPaginas)
+      );
+
+      await alertaSucesso("Categoria excluída com sucesso!");
+    } catch (erro) {
+      await alertaErro(
+        erro instanceof Error
+          ? erro.message
+          : "Não foi possível excluir a categoria."
+      );
+    } finally {
+      setExcluindoId(null);
+    }
+  };
+
+  if (carregando) {
+    return <p>Carregando categorias...</p>;
+  }
+
   return (
     <div className="card shadow-sm border-0">
       <div className="card-header bg-white d-flex justify-content-between align-items-center py-3">
@@ -40,6 +110,12 @@ const Categorias = () => {
         </Link>
       </div>
 
+      {mensagemErro && (
+        <div className="alert alert-danger m-3">
+          {mensagemErro}
+        </div>
+      )}
+
       <div className="card-body p-0">
         <div className="table-responsive">
           <table className="table table-hover align-middle mb-0">
@@ -47,9 +123,7 @@ const Categorias = () => {
               <tr>
                 <th className="ps-3">ID</th>
                 <th>Nome da Categoria</th>
-                <th className="text-end pe-3">
-                  Opções
-                </th>
+                <th className="text-end pe-3">Opções</th>
               </tr>
             </thead>
 
@@ -74,26 +148,28 @@ const Categorias = () => {
                         Editar
                       </Link>
 
-                      {/* TODO: Conectar exclusão com a API */}
                       <button
                         type="button"
                         className="btn btn-danger btn-sm"
-                        disabled
+                        onClick={() => excluir(categoria)}
+                        disabled={excluindoId !== null}
                       >
-                        Excluir
+                        {excluindoId === categoria.id
+                          ? "Excluindo..."
+                          : "Excluir"}
                       </button>
                     </div>
                   </td>
                 </tr>
               ))}
 
-              {categoriasPagina.length === 0 && (
+              {categorias.length === 0 && (
                 <tr>
                   <td
                     colSpan={3}
                     className="text-center py-4"
                   >
-                    Nenhuma categoria disponível.
+                    Nenhuma categoria cadastrada.
                   </td>
                 </tr>
               )}

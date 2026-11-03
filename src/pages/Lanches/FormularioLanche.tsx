@@ -1,11 +1,22 @@
 
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
+
 import CampoFormulario from "../../components/CampoFormulario/CampoFormulario";
-import { buscarProdutos } from "../../services/produtosService";
+
+import {
+  buscarLanchePorId,
+  cadastrarLanche,
+  editarLanche,
+} from "../../services/produtosService";
+
 import { buscarIngredientes } from "../../services/ingredientesService";
+import { buscarCategorias } from "../../services/categoriasService";
+
 import type { Ingrediente } from "../../services/ingredientesService";
+import type { Categoria } from "../../services/categoriasService";
+import { alertaSucesso } from "../../utils/alertas";
 
 interface ErrosFormulario {
   nome?: string;
@@ -15,7 +26,9 @@ interface ErrosFormulario {
 }
 
 const FormularioLanche = () => {
+  const navigate = useNavigate();
   const { id } = useParams();
+
   const editando = id !== undefined;
 
   const [nome, setNome] = useState("");
@@ -23,12 +36,15 @@ const FormularioLanche = () => {
   const [preco, setPreco] = useState("");
   const [popular, setPopular] = useState(false);
 
-  const [categorias, setCategorias] = useState<string[]>([]);
+  const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [ingredientes, setIngredientes] = useState<Ingrediente[]>([]);
   const [quantidades, setQuantidades] = useState<Record<number, number>>({});
 
   const [carregando, setCarregando] = useState(true);
+  const [salvando, setSalvando] = useState(false);
+
   const [mensagemErro, setMensagemErro] = useState("");
+  const [erroSalvar, setErroSalvar] = useState("");
   const [erros, setErros] = useState<ErrosFormulario>({});
 
   useEffect(() => {
@@ -36,48 +52,41 @@ const FormularioLanche = () => {
 
     const carregar = async () => {
       try {
-        const [produtos, ingredientesApi] = await Promise.all([
-          buscarProdutos(),
+        const [categoriasApi, ingredientesApi] = await Promise.all([
+          buscarCategorias(),
           buscarIngredientes(),
         ]);
 
         if (!ativo) return;
 
+        setCategorias(categoriasApi);
         setIngredientes(ingredientesApi);
 
-        // TODO: Substituir pela API de categorias quando estiver pronta.
-        // Por enquanto, utiliza as categorias dos produtos existentes.
-        const categoriasExistentes = produtos
-          .map((produto) => produto.categoria)
-          .filter((valor): valor is string => Boolean(valor));
-
-        setCategorias([...new Set(categoriasExistentes)]);
-
         if (editando) {
-          const produto = produtos.find(
-            (item) => item.id === Number(id)
-          );
+          const produto = await buscarLanchePorId(Number(id));
 
-          if (!produto) {
-            setMensagemErro("Lanche não encontrado.");
-            return;
-          }
+          if (!ativo) return;
 
           setNome(produto.nome);
-          setCategoria(produto.categoria);
+          setCategoria(String(produto.id_categoria));
           setPreco(String(produto.preco));
           setPopular(Boolean(produto.popular));
 
-          // TODO: Quando a API de produtos retornar
-          // as quantidades dos ingredientes,
-          // preencher o estado quantidades aqui.
+          const quantidadesReceita: Record<number, number> = {};
+
+          produto.ingredientesDetalhados.forEach((ingrediente) => {
+            quantidadesReceita[ingrediente.id_ingrediente] =
+              ingrediente.quantidade;
+          });
+
+          setQuantidades(quantidadesReceita);
         }
       } catch (erro) {
         if (ativo) {
           setMensagemErro(
             erro instanceof Error
               ? erro.message
-              : "Não foi possível carregar os dados."
+              : "Não foi possível carregar o formulário."
           );
         }
       } finally {
@@ -86,6 +95,7 @@ const FormularioLanche = () => {
         }
       }
     };
+
 
     carregar();
 
@@ -98,23 +108,28 @@ const FormularioLanche = () => {
     idIngrediente: number,
     valor: number
   ) => {
-    setQuantidades((quantidadesAtuais) => {
-      const atual = quantidadesAtuais[idIngrediente] || 0;
+    setQuantidades((atual) => ({
+      ...atual,
+      [idIngrediente]: Math.max(
+        0,
+        (atual[idIngrediente] || 0) + valor
+      ),
+    }));
 
-      return {
-        ...quantidadesAtuais,
-        [idIngrediente]: Math.max(0, atual + valor),
-      };
-    });
-
-    setErros((atuais) => ({
-      ...atuais,
+    setErros((atual) => ({
+      ...atual,
       ingredientes: undefined,
     }));
   };
 
-  const salvarLanche = (evento: FormEvent<HTMLFormElement>) => {
+  const salvarLanche = async (
+    evento: FormEvent<HTMLFormElement>
+  ) => {
     evento.preventDefault();
+
+    if (salvando) return;
+
+    setErroSalvar("");
 
     const novosErros: ErrosFormulario = {};
 
@@ -122,7 +137,6 @@ const FormularioLanche = () => {
     const precoNormalizado = preco.trim().replace(",", ".");
     const valorPreco = Number(precoNormalizado);
 
-    // Validação do nome
     if (nomeTratado === "") {
       novosErros.nome = "Informe o nome do lanche.";
     } else if (nomeTratado.length > 100) {
@@ -130,34 +144,31 @@ const FormularioLanche = () => {
         "O nome deve ter no máximo 100 caracteres.";
     }
 
-    // Validação da categoria
     if (
       categoria === "" ||
-      !categorias.includes(categoria)
+      !categorias.some(
+        (item) => item.id === Number(categoria)
+      )
     ) {
-      novosErros.categoria =
-        "Selecione uma categoria válida.";
+      novosErros.categoria = "Selecione uma categoria válida.";
     }
 
-    // Validação do preço
     if (
       !/^\d+(\.\d{1,2})?$/.test(precoNormalizado) ||
       !Number.isFinite(valorPreco) ||
       valorPreco <= 0
     ) {
       novosErros.preco =
-        "Digite um preço maior que zero (ex.: 15,50).";
+        "Digite um preço válido maior que zero.";
     }
 
-    // Ingredientes selecionados no formulário
     const ingredientesSelecionados = Object.entries(quantidades)
       .filter(([, quantidade]) => quantidade > 0)
       .map(([idIngrediente, quantidade]) => ({
-        idIngrediente: Number(idIngrediente),
+        id_ingrediente: Number(idIngrediente),
         quantidade,
       }));
 
-    // Validação dos ingredientes
     if (ingredientesSelecionados.length === 0) {
       novosErros.ingredientes =
         "Selecione pelo menos um ingrediente.";
@@ -169,39 +180,47 @@ const FormularioLanche = () => {
       return;
     }
 
-    // TODO: Integrar cadastro e edição de lanches com a API.
-    //
-    // Dados preparados:
-    // nomeTratado
-    // valorPreco
-    // popular
-    // categoria
-    // ingredientesSelecionados
-    //
-    // Quando o backend estiver pronto:
-    //
-    // 1. Buscar as categorias com seus IDs reais.
-    //
-    // 2. Substituir a categoria em texto
-    // pelo ID correspondente.
-    //
-    // 3. Enviar os ingredientes selecionados
-    // com suas respectivas quantidades.
-    //
-    // 4. No cadastro, chamar cadastrarLanche().
-    //
-    // 5. Na edição, chamar a função de atualização
-    // e carregar a receita existente.
-    //
-    // 6. Redirecionar para /admin/lanches somente
-    // quando o backend confirmar o salvamento.
-    //
-    // O botão Salvar permanece desativado
-    // enquanto essa integração não estiver pronta.
+    const dadosLanche = {
+      nome: nomeTratado,
+      preco: valorPreco,
+      popular,
+      id_categoria: Number(categoria),
+      ingredientes: ingredientesSelecionados,
+    };
+
+    setSalvando(true);
+
+    try {
+      if (editando) {
+        await editarLanche(Number(id), dadosLanche);
+      } else {
+        await cadastrarLanche(dadosLanche);
+      }
+      
+      await alertaSucesso(
+        editando
+          ? "Lanche editado com sucesso!"
+          : "Lanche cadastrado com sucesso!"
+      );
+
+      navigate("/admin/lanches");
+    } catch (erro) {
+      setErroSalvar(
+        erro instanceof Error
+          ? erro.message
+          : "Não foi possível salvar o lanche."
+      );
+    } finally {
+      setSalvando(false);
+    }
   };
 
   if (carregando) {
-    return <p>Carregando formulário...</p>;
+    return (
+      <div style={{ marginTop: "100px" }}>
+        <p>Carregando formulário...</p>
+      </div>
+    );
   }
 
   if (mensagemErro) {
@@ -228,15 +247,12 @@ const FormularioLanche = () => {
     >
       <div className="card-header bg-white py-3">
         <h3 className="m-0">
-          {editando
-            ? "Editar Lanche"
-            : "Cadastrar Novo Lanche"}
+          {editando ? "Editar Lanche" : "Cadastrar Novo Lanche"}
         </h3>
       </div>
 
       <div className="card-body">
         <form onSubmit={salvarLanche} noValidate>
-          {/* Nome do lanche */}
           <CampoFormulario
             id="nome"
             rotulo="Nome do Lanche:"
@@ -245,21 +261,16 @@ const FormularioLanche = () => {
             valor={nome}
             aoMudar={(valor) => {
               setNome(valor);
-
-              setErros((atuais) => ({
-                ...atuais,
+              setErros((atual) => ({
+                ...atual,
                 nome: undefined,
               }));
             }}
             erro={erros.nome}
           />
 
-          {/* Categoria */}
           <div className="mb-3">
-            <label
-              htmlFor="categoria"
-              className="form-label"
-            >
+            <label htmlFor="categoria" className="form-label">
               Categoria:
             </label>
 
@@ -274,19 +285,17 @@ const FormularioLanche = () => {
               onChange={(evento) => {
                 setCategoria(evento.target.value);
 
-                setErros((atuais) => ({
-                  ...atuais,
+                setErros((atual) => ({
+                  ...atual,
                   categoria: undefined,
                 }));
               }}
             >
-              <option value="">
-                Selecione uma categoria
-              </option>
+              <option value="">Selecione uma categoria</option>
 
               {categorias.map((item) => (
-                <option key={item} value={item}>
-                  {item}
+                <option key={item.id} value={String(item.id)}>
+                  {item.nome}
                 </option>
               ))}
             </select>
@@ -298,7 +307,6 @@ const FormularioLanche = () => {
             )}
           </div>
 
-          {/* Preço */}
           <CampoFormulario
             id="preco"
             rotulo="Preço (R$):"
@@ -308,24 +316,23 @@ const FormularioLanche = () => {
             aoMudar={(valor) => {
               setPreco(valor);
 
-              setErros((atuais) => ({
-                ...atuais,
+              setErros((atual) => ({
+                ...atual,
                 preco: undefined,
               }));
             }}
             erro={erros.preco}
           />
 
-          {/* Lanche popular */}
           <div className="form-check mb-3">
             <input
               id="popular"
               type="checkbox"
               className="form-check-input"
               checked={popular}
-              onChange={(evento) => {
-                setPopular(evento.target.checked);
-              }}
+              onChange={(evento) =>
+                setPopular(evento.target.checked)
+              }
             />
 
             <label
@@ -338,7 +345,6 @@ const FormularioLanche = () => {
 
           <hr className="my-4" />
 
-          {/* Tabela de ingredientes */}
           <h4 className="mb-3">
             Ingredientes do Lanche
           </h4>
@@ -347,13 +353,8 @@ const FormularioLanche = () => {
             <table className="table table-hover align-middle">
               <thead className="table-light">
                 <tr>
-                  <th className="ps-3">
-                    Ingrediente
-                  </th>
-
-                  <th className="text-end pe-3">
-                    Quantidade
-                  </th>
+                  <th className="ps-3">Ingrediente</th>
+                  <th className="text-end pe-3">Quantidade</th>
                 </tr>
               </thead>
 
@@ -366,7 +367,6 @@ const FormularioLanche = () => {
 
                     <td className="text-end pe-3">
                       <div className="d-flex justify-content-end align-items-center gap-2">
-                        {/* Diminuir quantidade */}
                         <button
                           type="button"
                           className="btn btn-outline-danger btn-sm"
@@ -374,16 +374,12 @@ const FormularioLanche = () => {
                             (quantidades[ingrediente.id] || 0) === 0
                           }
                           onClick={() =>
-                            alterarQuantidade(
-                              ingrediente.id,
-                              -1
-                            )
+                            alterarQuantidade(ingrediente.id, -1)
                           }
                         >
                           −
                         </button>
 
-                        {/* Quantidade selecionada */}
                         <span
                           className="text-center fw-bold"
                           style={{ minWidth: "30px" }}
@@ -391,15 +387,11 @@ const FormularioLanche = () => {
                           {quantidades[ingrediente.id] || 0}
                         </span>
 
-                        {/* Aumentar quantidade */}
                         <button
                           type="button"
                           className="btn btn-outline-success btn-sm"
                           onClick={() =>
-                            alterarQuantidade(
-                              ingrediente.id,
-                              1
-                            )
+                            alterarQuantidade(ingrediente.id, 1)
                           }
                         >
                           +
@@ -429,16 +421,19 @@ const FormularioLanche = () => {
             </div>
           )}
 
-          {/* Botões do formulário */}
+          {erroSalvar && (
+            <div className="alert alert-danger">
+              {erroSalvar}
+            </div>
+          )}
+
           <div className="mt-4">
-            {/* TODO: Habilitar após integrar
-                cadastro e edição com a API */}
             <button
               type="submit"
               className="btn btn-success me-2"
-              disabled
+              disabled={salvando}
             >
-              Salvar
+              {salvando ? "Salvando..." : "Salvar"}
             </button>
 
             <Link

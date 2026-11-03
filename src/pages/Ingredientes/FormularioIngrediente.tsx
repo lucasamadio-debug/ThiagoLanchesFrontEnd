@@ -2,13 +2,19 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+
 import CampoFormulario from "../../components/CampoFormulario/CampoFormulario";
 
 import {
-  buscarIngredientes,
+  buscarIngredientePorId,
   cadastrarIngrediente,
   editarIngrediente,
 } from "../../services/ingredientesService";
+
+import {
+  alertaSucesso,
+  alertaErro,
+} from "../../utils/alertas";
 
 const FormularioIngrediente = () => {
   const navigate = useNavigate();
@@ -20,9 +26,11 @@ const FormularioIngrediente = () => {
   const [mensagemErro, setMensagemErro] = useState("");
   const [carregando, setCarregando] = useState(false);
   const [carregandoDados, setCarregandoDados] = useState(editando);
+  const [erroCarregamento, setErroCarregamento] = useState(false);
 
   useEffect(() => {
     if (!editando) {
+      setCarregandoDados(false);
       return;
     }
 
@@ -30,21 +38,17 @@ const FormularioIngrediente = () => {
 
     const carregarIngrediente = async () => {
       try {
-        const ingredientes = await buscarIngredientes();
-
-        const ingrediente = ingredientes.find(
-          (item) => item.id === Number(id)
+        const ingrediente = await buscarIngredientePorId(
+          Number(id)
         );
 
-        if (!ativo) return;
-
-        if (ingrediente) {
+        if (ativo) {
           setNome(ingrediente.nome);
-        } else {
-          setMensagemErro("Ingrediente não encontrado.");
         }
       } catch (erro) {
         if (ativo) {
+          setErroCarregamento(true);
+
           setMensagemErro(
             erro instanceof Error
               ? erro.message
@@ -65,8 +69,13 @@ const FormularioIngrediente = () => {
     };
   }, [id, editando]);
 
-  const salvarIngrediente = async (evento: FormEvent) => {
+  const salvarIngrediente = async (
+    evento: FormEvent<HTMLFormElement>
+  ) => {
     evento.preventDefault();
+
+    if (carregando) return;
+
     setMensagemErro("");
 
     const nomeTratado = nome.trim();
@@ -77,7 +86,9 @@ const FormularioIngrediente = () => {
     }
 
     if (nomeTratado.length > 100) {
-      setMensagemErro("O nome deve ter no máximo 100 caracteres.");
+      setMensagemErro(
+        "O nome deve ter no máximo 100 caracteres."
+      );
       return;
     }
 
@@ -90,14 +101,19 @@ const FormularioIngrediente = () => {
         await cadastrarIngrediente(nomeTratado);
       }
 
-      navigate("/admin/ingredientes");
+      await alertaSucesso(
+        editando
+          ? "Ingrediente editado com sucesso!"
+          : "Ingrediente cadastrado com sucesso!"
+      );
 
+      navigate("/admin/ingredientes");
     } catch (erro) {
-      if (erro instanceof Error) {
-        setMensagemErro(erro.message);
-      } else {
-        setMensagemErro("Erro ao salvar ingrediente.");
-      }
+      await alertaErro(
+        erro instanceof Error
+          ? erro.message
+          : "Não foi possível salvar o ingrediente."
+      );
     } finally {
       setCarregando(false);
     }
@@ -105,6 +121,23 @@ const FormularioIngrediente = () => {
 
   if (carregandoDados) {
     return <p>Carregando ingrediente...</p>;
+  }
+
+  if (erroCarregamento) {
+    return (
+      <div style={{ marginTop: "100px" }}>
+        <div className="alert alert-danger">
+          {mensagemErro}
+        </div>
+
+        <Link
+          to="/admin/ingredientes"
+          className="btn btn-secondary"
+        >
+          Voltar
+        </Link>
+      </div>
+    );
   }
 
   return (
@@ -128,7 +161,11 @@ const FormularioIngrediente = () => {
             tipo="text"
             placeholder="Digite o nome do ingrediente"
             valor={nome}
-            aoMudar={setNome}
+            aoMudar={(valor) => {
+              setNome(valor);
+              setMensagemErro("");
+            }}
+            maxLength={100}
           />
 
           {mensagemErro && (

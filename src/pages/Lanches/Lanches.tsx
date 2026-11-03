@@ -1,16 +1,29 @@
 
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+
 import Paginacao from "../../components/Paginacao/Paginacao";
-import { buscarProdutos } from "../../services/produtosService";
+
+import {
+  buscarProdutos,
+  excluirLanche,
+} from "../../services/produtosService";
+
 import type { Produto } from "../../types/Produto";
 import { formatarPreco } from "../../utils/formatar";
+
+import {
+  alertaSucesso,
+  alertaErro,
+  confirmarExclusao,
+} from "../../utils/alertas";
 
 const Lanches = () => {
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [mensagemErro, setMensagemErro] = useState("");
   const [paginaAtual, setPaginaAtual] = useState(1);
+  const [excluindoId, setExcluindoId] = useState<number | null>(null);
 
   const itensPorPagina = 10;
 
@@ -31,11 +44,11 @@ const Lanches = () => {
         const dados = await buscarProdutos();
         setProdutos(dados);
       } catch (erro) {
-        if (erro instanceof Error) {
-          setMensagemErro(erro.message);
-        } else {
-          setMensagemErro("Erro ao carregar os produtos.");
-        }
+        setMensagemErro(
+          erro instanceof Error
+            ? erro.message
+            : "Erro ao carregar os lanches."
+        );
       } finally {
         setCarregando(false);
       }
@@ -44,21 +57,47 @@ const Lanches = () => {
     carregar();
   }, []);
 
-  const excluirLanche = (_id: number) => {
-    // TODO: Integrar exclusão com a API do backend.
-    // Atualizar a listagem depois da exclusão.
+  const excluir = async (produto: Produto) => {
+    if (excluindoId !== null) return;
+
+    const confirmado = await confirmarExclusao(produto.nome);
+
+    if (!confirmado) return;
+
+    setExcluindoId(produto.id);
+
+    try {
+      await excluirLanche(produto.id);
+
+      const novaLista = produtos.filter(
+        (item) => item.id !== produto.id
+      );
+
+      setProdutos(novaLista);
+
+      const novasPaginas = Math.max(
+        1,
+        Math.ceil(novaLista.length / itensPorPagina)
+      );
+
+      setPaginaAtual((pagina) =>
+        Math.min(pagina, novasPaginas)
+      );
+
+      await alertaSucesso("Lanche excluído com sucesso!");
+    } catch (erro) {
+      await alertaErro(
+        erro instanceof Error
+          ? erro.message
+          : "Não foi possível excluir o lanche."
+      );
+    } finally {
+      setExcluindoId(null);
+    }
   };
 
   if (carregando) {
-    return <p>Carregando produtos...</p>;
-  }
-
-  if (mensagemErro) {
-    return (
-      <div className="alert alert-danger">
-        {mensagemErro}
-      </div>
-    );
+    return <p>Carregando lanches...</p>;
   }
 
   return (
@@ -73,6 +112,12 @@ const Lanches = () => {
           Cadastrar Novo
         </Link>
       </div>
+
+      {mensagemErro && (
+        <div className="alert alert-danger m-3">
+          {mensagemErro}
+        </div>
+      )}
 
       <div className="card-body p-0">
         <div className="table-responsive">
@@ -119,11 +164,12 @@ const Lanches = () => {
                       <button
                         type="button"
                         className="btn btn-danger btn-sm"
-                        onClick={() =>
-                          excluirLanche(produto.id)
-                        }
+                        onClick={() => excluir(produto)}
+                        disabled={excluindoId !== null}
                       >
-                        Excluir
+                        {excluindoId === produto.id
+                          ? "Excluindo..."
+                          : "Excluir"}
                       </button>
                     </div>
                   </td>
@@ -145,13 +191,15 @@ const Lanches = () => {
         </div>
       </div>
 
-      <div className="card-footer bg-white">
-        <Paginacao
-          paginaAtual={paginaAtual}
-          totalPaginas={totalPaginas}
-          aoMudar={setPaginaAtual}
-        />
-      </div>
+      {totalPaginas > 1 && (
+        <div className="card-footer bg-white">
+          <Paginacao
+            paginaAtual={paginaAtual}
+            totalPaginas={totalPaginas}
+            aoMudar={setPaginaAtual}
+          />
+        </div>
+      )}
     </div>
   );
 };
