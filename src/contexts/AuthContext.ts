@@ -1,4 +1,6 @@
+
 import { createContext } from "react";
+
 import type { UsuarioLogado } from "../types/UsuarioLogado";
 import type { RespostaLogin } from "../types/RespostaLogin";
 
@@ -7,6 +9,7 @@ export interface AuthContextTipo {
   usuario: UsuarioLogado | null;
   entrar: (resposta: RespostaLogin) => void;
   sair: () => void;
+  atualizarUsuario: (dados: UsuarioLogado) => void;
 }
 
 export const AuthContext = createContext<AuthContextTipo>({
@@ -14,4 +17,5 @@ export const AuthContext = createContext<AuthContextTipo>({
   usuario: null,
   entrar: () => {},
   sair: () => {},
+  atualizarUsuario: () => {},
 });

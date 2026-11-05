@@ -11,12 +11,16 @@ import {
   editarLanche,
 } from "../../services/produtosService";
 
-import { buscarIngredientes } from "../../services/ingredientesService";
 import { buscarCategorias } from "../../services/categoriasService";
-
-import type { Ingrediente } from "../../services/ingredientesService";
 import type { Categoria } from "../../services/categoriasService";
-import { alertaSucesso } from "../../utils/alertas";
+
+import { buscarIngredientes } from "../../services/ingredientesService";
+import type { Ingrediente } from "../../services/ingredientesService";
+
+import {
+  alertaSucesso,
+  alertaErro,
+} from "../../utils/alertas";
 
 interface ErrosFormulario {
   nome?: string;
@@ -28,7 +32,6 @@ interface ErrosFormulario {
 const FormularioLanche = () => {
   const navigate = useNavigate();
   const { id } = useParams();
-
   const editando = id !== undefined;
 
   const [nome, setNome] = useState("");
@@ -42,51 +45,64 @@ const FormularioLanche = () => {
 
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
-
+  const [erroCarregamento, setErroCarregamento] = useState(false);
   const [mensagemErro, setMensagemErro] = useState("");
-  const [erroSalvar, setErroSalvar] = useState("");
   const [erros, setErros] = useState<ErrosFormulario>({});
+
+  const categoriaSelecionada = categorias.find(
+    (item) => item.id === Number(categoria)
+  );
+
+  const nomeCategoria = categoriaSelecionada?.nome
+    .trim()
+    .toLowerCase();
+
+  const ehBebida =
+    nomeCategoria === "bebidas" ||
+    nomeCategoria === "bebida";
 
   useEffect(() => {
     let ativo = true;
 
-    const carregar = async () => {
+    const carregarDados = async () => {
       try {
-        const [categoriasApi, ingredientesApi] = await Promise.all([
-          buscarCategorias(),
-          buscarIngredientes(),
-        ]);
+        const [listaCategorias, listaIngredientes, lanche] =
+          await Promise.all([
+            buscarCategorias(),
+            buscarIngredientes(),
+            editando
+              ? buscarLanchePorId(Number(id))
+              : Promise.resolve(null),
+          ]);
 
         if (!ativo) return;
 
-        setCategorias(categoriasApi);
-        setIngredientes(ingredientesApi);
+        setCategorias(listaCategorias);
+        setIngredientes(listaIngredientes);
 
-        if (editando) {
-          const produto = await buscarLanchePorId(Number(id));
+        if (lanche) {
+          setNome(lanche.nome);
+          setCategoria(String(lanche.id_categoria));
+          setPreco(String(lanche.preco));
+          setPopular(Boolean(lanche.popular));
 
-          if (!ativo) return;
+          const quantidadesSalvas: Record<number, number> = {};
 
-          setNome(produto.nome);
-          setCategoria(String(produto.id_categoria));
-          setPreco(String(produto.preco));
-          setPopular(Boolean(produto.popular));
-
-          const quantidadesReceita: Record<number, number> = {};
-
-          produto.ingredientesDetalhados.forEach((ingrediente) => {
-            quantidadesReceita[ingrediente.id_ingrediente] =
+          lanche.ingredientesDetalhados.forEach((ingrediente) => {
+            quantidadesSalvas[ingrediente.id_ingrediente] =
               ingrediente.quantidade;
           });
 
-          setQuantidades(quantidadesReceita);
+          setQuantidades(quantidadesSalvas);
         }
       } catch (erro) {
         if (ativo) {
+          setErroCarregamento(true);
+
           setMensagemErro(
             erro instanceof Error
               ? erro.message
-              : "Não foi possível carregar o formulário."
+              : "Não foi possível carregar os dados."
           );
         }
       } finally {
@@ -96,8 +112,7 @@ const FormularioLanche = () => {
       }
     };
 
-
-    carregar();
+    carregarDados();
 
     return () => {
       ativo = false;
@@ -129,8 +144,6 @@ const FormularioLanche = () => {
 
     if (salvando) return;
 
-    setErroSalvar("");
-
     const novosErros: ErrosFormulario = {};
 
     const nomeTratado = nome.trim();
@@ -138,19 +151,19 @@ const FormularioLanche = () => {
     const valorPreco = Number(precoNormalizado);
 
     if (nomeTratado === "") {
-      novosErros.nome = "Informe o nome do lanche.";
+      novosErros.nome = "Informe o nome do produto.";
     } else if (nomeTratado.length > 100) {
       novosErros.nome =
         "O nome deve ter no máximo 100 caracteres.";
     }
 
-    if (
-      categoria === "" ||
-      !categorias.some(
-        (item) => item.id === Number(categoria)
-      )
-    ) {
-      novosErros.categoria = "Selecione uma categoria válida.";
+    const categoriaValida = categorias.some(
+      (item) => item.id === Number(categoria)
+    );
+
+    if (categoria === "" || !categoriaValida) {
+      novosErros.categoria =
+        "Selecione uma categoria válida.";
     }
 
     if (
@@ -169,7 +182,7 @@ const FormularioLanche = () => {
         quantidade,
       }));
 
-    if (ingredientesSelecionados.length === 0) {
+    if (!ehBebida && ingredientesSelecionados.length === 0) {
       novosErros.ingredientes =
         "Selecione pelo menos um ingrediente.";
     }
@@ -185,7 +198,7 @@ const FormularioLanche = () => {
       preco: valorPreco,
       popular,
       id_categoria: Number(categoria),
-      ingredientes: ingredientesSelecionados,
+      ingredientes: ehBebida ? [] : ingredientesSelecionados,
     };
 
     setSalvando(true);
@@ -196,19 +209,19 @@ const FormularioLanche = () => {
       } else {
         await cadastrarLanche(dadosLanche);
       }
-      
+
       await alertaSucesso(
         editando
-          ? "Lanche editado com sucesso!"
-          : "Lanche cadastrado com sucesso!"
+          ? "Produto editado com sucesso!"
+          : "Produto cadastrado com sucesso!"
       );
 
       navigate("/admin/lanches");
     } catch (erro) {
-      setErroSalvar(
+      await alertaErro(
         erro instanceof Error
           ? erro.message
-          : "Não foi possível salvar o lanche."
+          : "Não foi possível salvar o produto."
       );
     } finally {
       setSalvando(false);
@@ -216,14 +229,10 @@ const FormularioLanche = () => {
   };
 
   if (carregando) {
-    return (
-      <div style={{ marginTop: "100px" }}>
-        <p>Carregando formulário...</p>
-      </div>
-    );
+    return <p>Carregando formulário...</p>;
   }
 
-  if (mensagemErro) {
+  if (erroCarregamento) {
     return (
       <div style={{ marginTop: "100px" }}>
         <div className="alert alert-danger">
@@ -247,7 +256,9 @@ const FormularioLanche = () => {
     >
       <div className="card-header bg-white py-3">
         <h3 className="m-0">
-          {editando ? "Editar Lanche" : "Cadastrar Novo Lanche"}
+          {editando
+            ? "Editar Produto"
+            : "Cadastrar Novo Produto"}
         </h3>
       </div>
 
@@ -255,12 +266,14 @@ const FormularioLanche = () => {
         <form onSubmit={salvarLanche} noValidate>
           <CampoFormulario
             id="nome"
-            rotulo="Nome do Lanche:"
+            rotulo="Nome do Produto:"
             tipo="text"
-            placeholder="Digite o nome do lanche"
+            placeholder="Digite o nome do produto"
             valor={nome}
+            maxLength={100}
             aoMudar={(valor) => {
               setNome(valor);
+
               setErros((atual) => ({
                 ...atual,
                 nome: undefined,
@@ -270,7 +283,10 @@ const FormularioLanche = () => {
           />
 
           <div className="mb-3">
-            <label htmlFor="categoria" className="form-label">
+            <label
+              htmlFor="categoria"
+              className="form-label"
+            >
               Categoria:
             </label>
 
@@ -288,13 +304,20 @@ const FormularioLanche = () => {
                 setErros((atual) => ({
                   ...atual,
                   categoria: undefined,
+                  ingredientes: undefined,
                 }));
               }}
+              disabled={salvando}
             >
-              <option value="">Selecione uma categoria</option>
+              <option value="">
+                Selecione uma categoria
+              </option>
 
               {categorias.map((item) => (
-                <option key={item.id} value={String(item.id)}>
+                <option
+                  key={item.id}
+                  value={String(item.id)}
+                >
                   {item.nome}
                 </option>
               ))}
@@ -330,101 +353,113 @@ const FormularioLanche = () => {
               type="checkbox"
               className="form-check-input"
               checked={popular}
-              onChange={(evento) =>
-                setPopular(evento.target.checked)
-              }
+              disabled={salvando}
+              onChange={(evento) => {
+                setPopular(evento.target.checked);
+              }}
             />
 
             <label
               htmlFor="popular"
               className="form-check-label"
             >
-              Marcar como lanche popular
+              Marcar como produto popular
             </label>
           </div>
 
-          <hr className="my-4" />
+          {!ehBebida && (
+            <>
+              <hr className="my-4" />
 
-          <h4 className="mb-3">
-            Ingredientes do Lanche
-          </h4>
+              <h4 className="mb-3">
+                Ingredientes do Lanche
+              </h4>
 
-          <div className="table-responsive mb-2">
-            <table className="table table-hover align-middle">
-              <thead className="table-light">
-                <tr>
-                  <th className="ps-3">Ingrediente</th>
-                  <th className="text-end pe-3">Quantidade</th>
-                </tr>
-              </thead>
+              <div className="table-responsive mb-2">
+                <table className="table table-hover align-middle">
+                  <thead className="table-light">
+                    <tr>
+                      <th className="ps-3">
+                        Ingrediente
+                      </th>
 
-              <tbody>
-                {ingredientes.map((ingrediente) => (
-                  <tr key={ingrediente.id}>
-                    <td className="ps-3">
-                      {ingrediente.nome}
-                    </td>
+                      <th className="text-end pe-3">
+                        Quantidade
+                      </th>
+                    </tr>
+                  </thead>
 
-                    <td className="text-end pe-3">
-                      <div className="d-flex justify-content-end align-items-center gap-2">
-                        <button
-                          type="button"
-                          className="btn btn-outline-danger btn-sm"
-                          disabled={
-                            (quantidades[ingrediente.id] || 0) === 0
-                          }
-                          onClick={() =>
-                            alterarQuantidade(ingrediente.id, -1)
-                          }
+                  <tbody>
+                    {ingredientes.map((ingrediente) => (
+                      <tr key={ingrediente.id}>
+                        <td className="ps-3">
+                          {ingrediente.nome}
+                        </td>
+
+                        <td className="text-end pe-3">
+                          <div className="d-flex justify-content-end align-items-center gap-2">
+                            <button
+                              type="button"
+                              className="btn btn-outline-danger btn-sm"
+                              disabled={
+                                salvando ||
+                                (quantidades[ingrediente.id] || 0) === 0
+                              }
+                              onClick={() =>
+                                alterarQuantidade(
+                                  ingrediente.id,
+                                  -1
+                                )
+                              }
+                            >
+                              −
+                            </button>
+
+                            <span
+                              className="text-center fw-bold"
+                              style={{ minWidth: "30px" }}
+                            >
+                              {quantidades[ingrediente.id] || 0}
+                            </span>
+
+                            <button
+                              type="button"
+                              className="btn btn-outline-success btn-sm"
+                              disabled={salvando}
+                              onClick={() =>
+                                alterarQuantidade(
+                                  ingrediente.id,
+                                  1
+                                )
+                              }
+                            >
+                              +
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+
+                    {ingredientes.length === 0 && (
+                      <tr>
+                        <td
+                          colSpan={2}
+                          className="text-center py-3"
                         >
-                          −
-                        </button>
+                          Nenhum ingrediente cadastrado.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
 
-                        <span
-                          className="text-center fw-bold"
-                          style={{ minWidth: "30px" }}
-                        >
-                          {quantidades[ingrediente.id] || 0}
-                        </span>
-
-                        <button
-                          type="button"
-                          className="btn btn-outline-success btn-sm"
-                          onClick={() =>
-                            alterarQuantidade(ingrediente.id, 1)
-                          }
-                        >
-                          +
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-
-                {ingredientes.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan={2}
-                      className="text-center py-3"
-                    >
-                      Nenhum ingrediente cadastrado.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {erros.ingredientes && (
-            <div className="text-danger mb-3">
-              {erros.ingredientes}
-            </div>
-          )}
-
-          {erroSalvar && (
-            <div className="alert alert-danger">
-              {erroSalvar}
-            </div>
+              {erros.ingredientes && (
+                <div className="text-danger mb-3">
+                  {erros.ingredientes}
+                </div>
+              )}
+            </>
           )}
 
           <div className="mt-4">

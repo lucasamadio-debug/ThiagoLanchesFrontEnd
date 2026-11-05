@@ -1,6 +1,9 @@
+
 import { useState } from "react";
 import type { ReactNode } from "react";
+
 import { AuthContext } from "./AuthContext";
+
 import type { UsuarioLogado } from "../types/UsuarioLogado";
 import type { RespostaLogin } from "../types/RespostaLogin";
 
@@ -11,20 +14,34 @@ interface AuthProviderProps {
 const lerUsuarioSalvo = (): UsuarioLogado | null => {
   const texto = localStorage.getItem("usuario");
 
-  if (texto === null) {
+  if (!texto) {
     return null;
   }
 
-  return JSON.parse(texto);
+  try {
+    return JSON.parse(texto) as UsuarioLogado;
+  } catch {
+    localStorage.removeItem("usuario");
+    return null;
+  }
 };
 
-const AuthProvider = (props: AuthProviderProps) => {
-  const [token, setToken] = useState<string | null>(localStorage.getItem("token"));
-  const [usuario, setUsuario] = useState<UsuarioLogado | null>(lerUsuarioSalvo());
+const AuthProvider = ({ children }: AuthProviderProps) => {
+  const [token, setToken] = useState<string | null>(
+    localStorage.getItem("token")
+  );
+
+  const [usuario, setUsuario] = useState<UsuarioLogado | null>(
+    lerUsuarioSalvo
+  );
 
   const entrar = (resposta: RespostaLogin) => {
     localStorage.setItem("token", resposta.token);
-    localStorage.setItem("usuario", JSON.stringify(resposta.user));
+    localStorage.setItem(
+      "usuario",
+      JSON.stringify(resposta.user)
+    );
+
     setToken(resposta.token);
     setUsuario(resposta.user);
   };
@@ -32,13 +49,27 @@ const AuthProvider = (props: AuthProviderProps) => {
   const sair = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("usuario");
+
     setToken(null);
     setUsuario(null);
   };
 
+  const atualizarUsuario = (dados: UsuarioLogado) => {
+    localStorage.setItem("usuario", JSON.stringify(dados));
+    setUsuario(dados);
+  };
+
   return (
-    <AuthContext.Provider value={{ token: token, usuario: usuario, entrar: entrar, sair: sair }}>
-      {props.children}
+    <AuthContext.Provider
+      value={{
+        token,
+        usuario,
+        entrar,
+        sair,
+        atualizarUsuario,
+      }}
+    >
+      {children}
     </AuthContext.Provider>
   );
 };

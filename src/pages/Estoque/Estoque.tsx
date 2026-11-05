@@ -1,15 +1,28 @@
 
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+
 import Paginacao from "../../components/Paginacao/Paginacao";
-import { buscarEstoque } from "../../services/estoqueService";
+
+import {
+  buscarEstoque,
+  excluirEstoque,
+} from "../../services/estoqueService";
+
 import type { ItemEstoque } from "../../types/ItemEstoque";
+
+import {
+  alertaSucesso,
+  alertaErro,
+  confirmarExclusao,
+} from "../../utils/alertas";
 
 const Estoque = () => {
   const [estoque, setEstoque] = useState<ItemEstoque[]>([]);
   const [paginaAtual, setPaginaAtual] = useState(1);
   const [carregando, setCarregando] = useState(true);
   const [mensagemErro, setMensagemErro] = useState("");
+  const [excluindoId, setExcluindoId] = useState<number | null>(null);
 
   const itensPorPagina = 10;
 
@@ -33,7 +46,7 @@ const Estoque = () => {
         setMensagemErro(
           erro instanceof Error
             ? erro.message
-            : "Erro ao carregar estoque."
+            : "Erro ao carregar o estoque."
         );
       } finally {
         setCarregando(false);
@@ -42,6 +55,48 @@ const Estoque = () => {
 
     carregarEstoque();
   }, []);
+
+  const excluir = async (item: ItemEstoque) => {
+    if (excluindoId !== null) return;
+
+    const confirmado = await confirmarExclusao(item.produto);
+
+    if (!confirmado) return;
+
+    setExcluindoId(item.id);
+    setMensagemErro("");
+
+    try {
+      await excluirEstoque(item.id);
+
+      const novaLista = estoque.filter(
+        (registro) => registro.id !== item.id
+      );
+
+      setEstoque(novaLista);
+
+      const novasPaginas = Math.max(
+        1,
+        Math.ceil(novaLista.length / itensPorPagina)
+      );
+
+      setPaginaAtual((pagina) =>
+        Math.min(pagina, novasPaginas)
+      );
+
+      await alertaSucesso(
+        "Registro de estoque excluído com sucesso!"
+      );
+    } catch (erro) {
+      await alertaErro(
+        erro instanceof Error
+          ? erro.message
+          : "Não foi possível excluir o registro."
+      );
+    } finally {
+      setExcluindoId(null);
+    }
+  };
 
   if (carregando) {
     return <p>Carregando estoque...</p>;
@@ -74,9 +129,7 @@ const Estoque = () => {
                 <th className="ps-3">Produto</th>
                 <th>Categoria</th>
                 <th>Quantidade</th>
-                <th className="text-end pe-3">
-                  Opções
-                </th>
+                <th className="text-end pe-3">Opções</th>
               </tr>
             </thead>
 
@@ -117,13 +170,15 @@ const Estoque = () => {
                         Editar
                       </Link>
 
-                      {/* TODO: Integrar DELETE com a API */}
                       <button
                         type="button"
                         className="btn btn-danger btn-sm"
-                        disabled
+                        onClick={() => excluir(item)}
+                        disabled={excluindoId !== null}
                       >
-                        Excluir
+                        {excluindoId === item.id
+                          ? "Excluindo..."
+                          : "Excluir"}
                       </button>
                     </div>
                   </td>

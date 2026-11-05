@@ -1,21 +1,31 @@
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+
 import Paginacao from "../../components/Paginacao/Paginacao";
 
-interface Usuario {
-  id: number;
-  nome: string;
-  email: string;
-}
+import {
+  buscarUsuarios,
+  buscarMeuUsuario,
+  excluirUsuario,
+} from "../../services/usuariosService";
+
+import type { Usuario } from "../../services/usuariosService";
+
+import {
+  alertaSucesso,
+  alertaErro,
+  confirmarExclusao,
+} from "../../utils/alertas";
 
 const Usuarios = () => {
-  // TODO: Buscar os usuários na API do backend.
-  const usuarios: Usuario[] = [];
-
+  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
+  const [meuId, setMeuId] = useState<number | null>(null);
   const [paginaAtual, setPaginaAtual] = useState(1);
+  const [carregando, setCarregando] = useState(true);
+  const [mensagemErro, setMensagemErro] = useState("");
+  const [excluindoId, setExcluindoId] = useState<number | null>(null);
 
-  // Paginação de 10 usuários por página
   const itensPorPagina = 10;
 
   const totalPaginas = Math.ceil(
@@ -29,12 +39,93 @@ const Usuarios = () => {
     indiceInicial + itensPorPagina
   );
 
-  const excluirUsuario = (_id: number) => {
-    // TODO: Conectar à API para excluir o usuário.
-    // Confirmar a exclusão antes de enviar.
-    // Atualizar a listagem após excluir com sucesso.
-    // Impedir que o administrador exclua a própria conta.
+  useEffect(() => {
+    let ativo = true;
+
+    const carregarUsuarios = async () => {
+      try {
+        const [listaUsuarios, meuUsuario] = await Promise.all([
+          buscarUsuarios(),
+          buscarMeuUsuario(),
+        ]);
+
+        if (ativo) {
+          setUsuarios(listaUsuarios);
+          setMeuId(meuUsuario.id);
+        }
+      } catch (erro) {
+        if (ativo) {
+          setMensagemErro(
+            erro instanceof Error
+              ? erro.message
+              : "Erro ao carregar usuários."
+          );
+        }
+      } finally {
+        if (ativo) {
+          setCarregando(false);
+        }
+      }
+    };
+
+    carregarUsuarios();
+
+    return () => {
+      ativo = false;
+    };
+  }, []);
+
+  const excluir = async (usuario: Usuario) => {
+    if (excluindoId !== null || meuId === null) return;
+
+    if (usuario.id === meuId) {
+      await alertaErro(
+        "Você não pode excluir sua própria conta."
+      );
+      return;
+    }
+
+    const confirmado = await confirmarExclusao(usuario.nome);
+
+    if (!confirmado) return;
+
+    setExcluindoId(usuario.id);
+
+    try {
+      await excluirUsuario(usuario.id);
+
+      const novaLista = usuarios.filter(
+        (item) => item.id !== usuario.id
+      );
+
+      setUsuarios(novaLista);
+
+      const novasPaginas = Math.max(
+        1,
+        Math.ceil(novaLista.length / itensPorPagina)
+      );
+
+      setPaginaAtual((pagina) =>
+        Math.min(pagina, novasPaginas)
+      );
+
+      await alertaSucesso(
+        "Usuário excluído com sucesso!"
+      );
+    } catch (erro) {
+      await alertaErro(
+        erro instanceof Error
+          ? erro.message
+          : "Não foi possível excluir o usuário."
+      );
+    } finally {
+      setExcluindoId(null);
+    }
   };
+
+  if (carregando) {
+    return <p>Carregando usuários...</p>;
+  }
 
   return (
     <div className="card shadow-sm border-0">
@@ -58,6 +149,12 @@ const Usuarios = () => {
         </div>
       </div>
 
+      {mensagemErro && (
+        <div className="alert alert-danger m-3">
+          {mensagemErro}
+        </div>
+      )}
+
       <div className="card-body p-0">
         <div className="table-responsive">
           <table className="table table-hover align-middle mb-0">
@@ -66,7 +163,10 @@ const Usuarios = () => {
                 <th className="ps-3">ID</th>
                 <th>Nome do Usuário</th>
                 <th>E-mail</th>
-                <th className="text-end pe-3">Opções</th>
+                <th>Perfil</th>
+                <th className="text-end pe-3">
+                  Opções
+                </th>
               </tr>
             </thead>
 
@@ -77,24 +177,59 @@ const Usuarios = () => {
                     {usuario.id}
                   </td>
 
-                  <td>{usuario.nome}</td>
+                  <td>
+                    {usuario.nome}
+                    {usuario.id === meuId && (
+                      <span className="badge bg-secondary ms-2">
+                        Você
+                      </span>
+                    )}
+                  </td>
 
                   <td>{usuario.email}</td>
+
+                  <td>
+                    <span className="badge bg-info text-dark">
+                      {usuario.role === "ADMIN"
+                        ? "Administrador"
+                        : "Usuário"}
+                    </span>
+                  </td>
 
                   <td className="text-end pe-3">
                     <button
                       type="button"
                       className="btn btn-danger btn-sm"
-                      onClick={() => excluirUsuario(usuario.id)}
-                      disabled
+                      onClick={() => excluir(usuario)}
+                      disabled={
+                        meuId === null ||
+                        usuario.id === meuId ||
+                        excluindoId !== null
+                      }
+                      title={
+                        usuario.id === meuId
+                          ? "Você não pode excluir sua própria conta"
+                          : "Excluir usuário"
+                      }
                     >
-                      Excluir
+                      {excluindoId === usuario.id
+                        ? "Excluindo..."
+                        : "Excluir"}
                     </button>
                   </td>
                 </tr>
               ))}
 
-              {/* TODO: Integrar a listagem com a API */}
+              {usuariosPagina.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={5}
+                    className="text-center py-4"
+                  >
+                    Nenhum usuário encontrado.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
